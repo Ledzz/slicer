@@ -77,7 +77,7 @@ function App() {
               {result.map((r, i) => (
                 <primitive key={i} object={r.line} />
               ))}
-              <Stl renderOrder={100} position={[-21, -21, 5]} url={file}>
+              <Stl renderOrder={100} url={file}>
                 <meshStandardMaterial
                   color={0xff0000}
                   // wireframe
