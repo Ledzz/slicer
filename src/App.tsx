@@ -11,7 +11,7 @@ import { Suspense } from "react";
 import { DownloadOutlined } from "@ant-design/icons";
 import { slice } from "./utils/slicer.ts";
 
-const file = "/GridLite 1x1.stl";
+const file = "/baseplate-1x1.stl";
 
 const result = await slice(file);
 
