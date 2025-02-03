@@ -10,10 +10,13 @@ import { Environment } from "@react-three/drei";
 import { Suspense } from "react";
 import { DownloadOutlined } from "@ant-design/icons";
 import { slice } from "./utils/slicer.ts";
+import { generateInfill } from "./utils/infill.ts";
 
 const file = "/baseplate-1x1.stl";
 
 const result = await slice(file);
+const withInfill = generateInfill(result);
+console.log(withInfill);
 
 function App() {
   const {
@@ -73,10 +76,18 @@ function App() {
             <axesHelper scale={60} />
             <OrbitHandles />
 
+            {withInfill.map((r, i) => (
+              <group key={i}>
+                <primitive object={r.line} />
+                {r.infill.map((line, k) => (
+                  <arrowHelper
+                    key={k}
+                    args={[line[0], line[1], line[2], 0x00ff00]}
+                  />
+                ))}
+              </group>
+            ))}
             <group rotation-x={-Math.PI / 2}>
-              {result.map((r, i) => (
-                <primitive key={i} object={r.line} />
-              ))}
               <Stl renderOrder={100} url={file}>
                 <meshStandardMaterial
                   color={0xff0000}

@@ -20,13 +20,14 @@ export const slice = async (file: string) => {
   const layers = [];
 
   const geometry = await loader.loadAsync(file);
+  geometry.rotateX(-Math.PI / 2);
   const obj = new Mesh(geometry);
   const bbox = new Box3().setFromObject(obj);
-  const modelHeight = bbox.max.z - bbox.min.z;
+  const modelHeight = bbox.max.y - bbox.min.y;
   const layerCount = Math.ceil(modelHeight / layerHeight);
 
   for (let i = 0; i < layerCount; i++) {
-    const height = bbox.min.z + i * layerHeight;
+    const height = bbox.min.y + i * layerHeight;
     const layer = createLayer(height);
     layers.push(layer);
   }
@@ -34,7 +35,7 @@ export const slice = async (file: string) => {
   return layers;
 
   function createLayer(height: number) {
-    const intersectionPlane = new Plane(new Vector3(0, 0, 1), -height);
+    const intersectionPlane = new Plane(new Vector3(0, 1, 0), -height);
     const intersectionLines = findIntersections(intersectionPlane);
 
     const contours = connectSegments(intersectionLines);
