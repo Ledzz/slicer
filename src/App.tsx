@@ -11,7 +11,9 @@ import { Suspense } from "react";
 import { DownloadOutlined } from "@ant-design/icons";
 import { slice } from "./utils/slicer.ts";
 
-slice();
+const file = "/GridLite 1x1.stl";
+
+const result = await slice(file);
 
 function App() {
   const {
@@ -70,14 +72,18 @@ function App() {
 
             <axesHelper scale={60} />
             <OrbitHandles />
+
             <group rotation-x={-Math.PI / 2}>
-              <Stl renderOrder={100} position={[-21, -21, 5]} url={"/cone.stl"}>
+              {result.map((r, i) => (
+                <primitive key={i} object={r.line} />
+              ))}
+              <Stl renderOrder={100} position={[-21, -21, 5]} url={file}>
                 <meshStandardMaterial
                   color={0xff0000}
                   // wireframe
                   // wireframeLinewidth={2}
-                  // transparent
-                  // opacity={0.8}
+                  transparent
+                  opacity={0.4}
                 />
               </Stl>
             </group>

@@ -1,10 +1,20 @@
 import { STLLoader } from "three/examples/jsm/loaders/STLLoader.js";
-import { Box3, Line3, Mesh, Plane, Vector3 } from "three";
+import {
+  Box3,
+  BufferGeometry,
+  ColorRepresentation,
+  Group,
+  Line,
+  Line3,
+  LineBasicMaterial,
+  Mesh,
+  Plane,
+  Vector3,
+} from "three";
 
 const loader = new STLLoader();
 
-export const slice = async () => {
-  const file = "/cone.stl";
+export const slice = async (file: string) => {
   const layerHeight = 0.2;
 
   const layers = [];
@@ -14,7 +24,6 @@ export const slice = async () => {
   const bbox = new Box3().setFromObject(obj);
   const modelHeight = bbox.max.z - bbox.min.z;
   const layerCount = Math.ceil(modelHeight / layerHeight);
-  console.log(layerCount);
 
   for (let i = 0; i < layerCount; i++) {
     const height = bbox.min.z + i * layerHeight;
@@ -22,15 +31,20 @@ export const slice = async () => {
     layers.push(layer);
   }
 
+  return layers;
+
   function createLayer(height: number) {
     const intersectionPlane = new Plane(new Vector3(0, 0, 1), -height);
     const intersectionLines = findIntersections(intersectionPlane);
 
     const contours = connectSegments(intersectionLines);
 
+    const line = contourToLines(contours);
+
     return {
       // height,
-      // contours,
+      line,
+      contours,
       // infill: generateInfill(contours),
       // supports: generateSupports(contours)
     };
@@ -57,6 +71,35 @@ export const slice = async () => {
     return intersections;
   }
 };
+
+function contourToLines(
+  contours: [Vector3, Vector3][][],
+  color: ColorRepresentation = 0xff0000,
+  linewidth: number = 1,
+): Group {
+  // Create a group to hold all the lines
+  const group = new Group();
+
+  // Create a material that will be shared by all lines
+  const material = new LineBasicMaterial({
+    color: color,
+    linewidth: linewidth,
+  });
+
+  // Process each contour
+  contours.forEach((contour) => {
+    // Create geometry for this contour
+    const geometry = new BufferGeometry().setFromPoints(contour);
+
+    // Create a line from the geometry
+    const line = new Line(geometry, material);
+
+    // Add the line to the group
+    group.add(line);
+  });
+
+  return group;
+}
 
 function trianglePlaneIntersection(
   [p1, p2, p3]: [Vector3, Vector3, Vector3],
@@ -87,31 +130,61 @@ function linePlaneIntersection(p1: Vector3, p2: Vector3, plane: Plane) {
 }
 
 // Step 2: Connect Line Segments into Continuous Contours
-function connectSegments(segments: [Vector3, Vector3][]) {
-  let contours = [];
+function connectSegments(segments: [Vector3, Vector3][]): Vector3[][] {
+  if (!segments || segments.length === 0) return [];
 
-  while (segments.length > 0) {
-    let contour = [segments.pop()]; // Start a new contour
-    let found = true;
+  // Helper function to check if two points are the same (within tolerance)
+  const EPSILON = 0.0001;
+  const isSamePoint = (a: Vector3, b: Vector3): boolean =>
+    a.distanceTo(b) < EPSILON;
 
-    while (found) {
-      found = false;
+  // Keep track of used segments
+  const usedSegments = new Set<number>();
+  const contours: Vector3[][] = [];
+
+  while (usedSegments.size < segments.length) {
+    // Find first unused segment to start a new contour
+    const startIndex = segments.findIndex(
+      (_, index) => !usedSegments.has(index),
+    );
+    if (startIndex === -1) break;
+
+    // Start new contour with the first segment
+    const currentContour: Vector3[] = [
+      segments[startIndex][0].clone(),
+      segments[startIndex][1].clone(),
+    ];
+    usedSegments.add(startIndex);
+
+    let foundConnection: boolean;
+    do {
+      foundConnection = false;
+
+      // Try to extend the contour
       for (let i = 0; i < segments.length; i++) {
-        let seg = segments[i];
-        if (seg[0].distanceTo(contour[contour.length - 1][1]) < 1e-3) {
-          contour.push(seg);
-          segments.splice(i, 1);
-          found = true;
+        if (usedSegments.has(i)) continue;
+
+        const segment = segments[i];
+        const lastPoint = currentContour[currentContour.length - 1];
+
+        // Check if this segment connects to the end of our contour
+        if (isSamePoint(lastPoint, segment[0])) {
+          currentContour.push(segment[1].clone());
+          usedSegments.add(i);
+          foundConnection = true;
           break;
-        } else if (seg[1].distanceTo(contour[0][0]) < 1e-3) {
-          contour.unshift(seg);
-          segments.splice(i, 1);
-          found = true;
+        } else if (isSamePoint(lastPoint, segment[1])) {
+          currentContour.push(segment[0].clone());
+          usedSegments.add(i);
+          foundConnection = true;
           break;
         }
       }
-    }
-    contours.push(contour);
+    } while (foundConnection);
+
+    // Add the completed contour
+    contours.push(currentContour);
   }
+
   return contours;
 }
