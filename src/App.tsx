@@ -10,8 +10,8 @@ import { Environment } from "@react-three/drei";
 import { Suspense } from "react";
 import { DownloadOutlined } from "@ant-design/icons";
 import { slice } from "./utils/slicer";
-import { generateInfill } from "./utils/infill";
 import { helperGroup } from "./utils/helper";
+import { generateInfill } from "./utils/infill.ts";
 
 const file = "/baseplate-1x1.stl";
 
@@ -79,29 +79,29 @@ function App() {
             <group>
               <primitive object={helperGroup} />
             </group>
-            {withInfill.map((r, i) => (
-              <group key={i}>
-                <primitive object={r.line} />
-                {/*{r.infill.map((line, k) => (*/}
-                {/*  // <arrowHelper*/}
-                {/*  //   key={k}*/}
-                {/*  //   args={[line[0], line[1], line[2], 0x00ff00]}*/}
-                {/*  // />*/}
-                {/*  <mesh key={k} position={line[1]}>*/}
-                {/*    <sphereGeometry args={[1]} />*/}
-                {/*    <meshBasicMaterial color={0x00ff00} />*/}
-                {/*  </mesh>*/}
-                {/*))}*/}
-              </group>
-            ))}
             <group rotation-x={-Math.PI / 2}>
+              {withInfill.map((r, i) => (
+                <group key={i}>
+                  <primitive object={r.line} />
+                  {/*{r.infill.map((line, k) => (*/}
+                  {/*  // <arrowHelper*/}
+                  {/*  //   key={k}*/}
+                  {/*  //   args={[line[0], line[1], line[2], 0x00ff00]}*/}
+                  {/*  // />*/}
+                  {/*  <mesh key={k} position={line[1]}>*/}
+                  {/*    <sphereGeometry args={[1]} />*/}
+                  {/*    <meshBasicMaterial color={0x00ff00} />*/}
+                  {/*  </mesh>*/}
+                  {/*))}*/}
+                </group>
+              ))}
               <Stl renderOrder={100} url={file}>
                 <meshStandardMaterial
                   color={0xff0000}
                   // wireframe
                   // wireframeLinewidth={2}
                   transparent
-                  opacity={0.4}
+                  opacity={0.1}
                 />
               </Stl>
             </group>

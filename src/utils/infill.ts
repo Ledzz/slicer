@@ -1,29 +1,28 @@
 import { slice } from "./slicer";
 import { Box3 } from "three";
-import { gridInfill } from "./infill/grid";
-import { debugLine } from "./helper";
+import { debugLine } from "./helper.ts";
+import { gridInfill } from "./infill/grid.ts";
 
 export const generateInfill = (data: Awaited<ReturnType<typeof slice>>) => {
   const bounds = new Box3();
+  if (data.geometry.boundingBox) {
+    bounds.copy(data.geometry.boundingBox);
+  }
 
-  data.forEach((layer) => {
-    layer.contours.forEach((contour) => {
-      contour.forEach((point) => {
-        bounds.expandByPoint(point.clone().setY(layer.height));
-      });
-    });
-  });
+  const ret = {
+    ...data,
+    layers: data.layers.map((layer) => ({
+      ...layer,
+      infill: gridInfill({
+        contours: layer.contours,
+        density: 0.2,
+        bounds,
+        data,
+      }),
+    })),
+  };
 
-  const ret = data.map((layer) => ({
-    ...layer,
-    infill: gridInfill({
-      contours: layer.contours,
-      density: 0.2,
-      bounds,
-    }),
-  }));
-
-  ret.forEach((layer) => {
+  ret.layers.forEach((layer) => {
     layer.infill.lines.forEach((l) => {
       debugLine(l[0], l[1]);
     });
