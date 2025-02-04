@@ -11,8 +11,11 @@ import {
   Plane,
   Vector3,
 } from "three";
+import { manifold } from "./manifold.ts";
 
 const loader = new STLLoader();
+
+console.log(manifold);
 
 export const slice = async (file: string) => {
   const layerHeight = 0.2;
