@@ -6,7 +6,7 @@ import {
   Mesh,
   MeshBasicMaterial,
   Plane,
-  PlaneHelper,
+  PlaneGeometry,
   SphereGeometry,
   Vector3,
 } from "three";
@@ -14,26 +14,37 @@ import {
 export const helperGroup = new Group();
 
 export function debugPoint(p: Vector3) {
-  const m = new Mesh(
+  const helper = new Mesh(
     new SphereGeometry(),
     new MeshBasicMaterial({ color: 0x00ff00 }),
   );
 
-  m.position.copy(p);
+  helper.position.copy(p);
 
-  helperGroup.add(m);
+  helperGroup.add(helper);
 }
 
 export function debugPlane(plane: Plane) {
-  const helper = new PlaneHelper(plane, 1, 0xff);
+  const helper = new Mesh(
+    new PlaneGeometry(10, 10),
+    new MeshBasicMaterial({ color: 0xff, wireframe: true }),
+  );
+
+  helper.lookAt(plane.normal);
+  helper.position.copy(plane.normal).multiplyScalar(plane.constant);
 
   helperGroup.add(helper);
 }
 
 export function debugLine(v1: Vector3, v2: Vector3) {
-  const geometry = new BufferGeometry().setFromPoints([v1, v2]);
-  const material = new LineBasicMaterial({ color: 0xff0000 });
-  const line = new Line(geometry, material);
+  const helper = new Line(
+    new BufferGeometry().setFromPoints([v1, v2]),
+    new LineBasicMaterial({ color: 0xff0000 }),
+  );
 
-  helperGroup.add(line);
+  helperGroup.add(helper);
 }
+
+import.meta.hot.on("vite:beforeUpdate", () => {
+  helperGroup.clear();
+});

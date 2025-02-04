@@ -73,13 +73,13 @@ function App() {
             </Suspense>
             <PointerEvents />
 
-            <axesHelper scale={60} />
             <OrbitHandles />
 
-            <group>
-              <primitive object={helperGroup} />
-            </group>
             <group rotation-x={-Math.PI / 2}>
+              <primitive object={helperGroup} />
+
+              <axesHelper scale={60} />
+
               {withInfill.layers.map((r, i) => (
                 <group key={i}>
                   {/*<primitive object={r.line} />*/}
@@ -91,8 +91,7 @@ function App() {
                   {/*  <mesh key={k} position={line[1]}>*/}
                   {/*    <sphereGeometry args={[1]} />*/}
                   {/*    <meshBasicMaterial color={0x00ff00} />*/}
-                  {/*  </mesh>*/}
-                  {/*))}*/}
+                  {/*  </mesh>*/}c{/*))}*/}
                 </group>
               ))}
               <Stl renderOrder={100} url={file}>
