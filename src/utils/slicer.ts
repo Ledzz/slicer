@@ -11,6 +11,7 @@ import {
   Plane,
   Vector3,
 } from "three";
+import { debugPoint } from "./helper.ts";
 
 const loader = new STLLoader();
 
@@ -26,7 +27,7 @@ export const slice = async (file: string) => {
   const modelHeight = bbox.max.y - bbox.min.y;
   const layerCount = Math.ceil(modelHeight / layerHeight);
 
-  for (let i = 0; i < layerCount; i++) {
+  for (let i = 0; i < 1; i++) {
     const height = bbox.min.y + i * layerHeight;
     const layer = createLayer(height);
     layers.push(layer);
@@ -39,7 +40,6 @@ export const slice = async (file: string) => {
     const intersectionLines = findIntersections(intersectionPlane);
 
     const contours = connectSegments(intersectionLines);
-
     const line = contourToLines(contours);
 
     return {
@@ -56,6 +56,7 @@ export const slice = async (file: string) => {
     const position = geometry.getAttribute("position").array;
 
     for (let i = 0; i < position.length; i += 9) {
+      // for (let i = 0; i < 9; i += 9) {
       const p1 = new Vector3(position[i], position[i + 1], position[i + 2]);
       const p2 = new Vector3(position[i + 3], position[i + 4], position[i + 5]);
       const p3 = new Vector3(position[i + 6], position[i + 7], position[i + 8]);
@@ -65,6 +66,8 @@ export const slice = async (file: string) => {
       if (!line) {
         continue;
       }
+
+      debugPoint(line[0]);
 
       intersections.push(line);
     }

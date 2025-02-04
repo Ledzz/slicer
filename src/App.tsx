@@ -11,12 +11,12 @@ import { Suspense } from "react";
 import { DownloadOutlined } from "@ant-design/icons";
 import { slice } from "./utils/slicer.ts";
 import { generateInfill } from "./utils/infill.ts";
+import { helperGroup } from "./utils/helper.ts";
 
 const file = "/baseplate-1x1.stl";
 
 const result = await slice(file);
 const withInfill = generateInfill(result);
-console.log(withInfill);
 
 function App() {
   const {
@@ -76,15 +76,22 @@ function App() {
             <axesHelper scale={60} />
             <OrbitHandles />
 
+            <group>
+              <primitive object={helperGroup} />
+            </group>
             {withInfill.map((r, i) => (
               <group key={i}>
                 <primitive object={r.line} />
-                {r.infill.map((line, k) => (
-                  <arrowHelper
-                    key={k}
-                    args={[line[0], line[1], line[2], 0x00ff00]}
-                  />
-                ))}
+                {/*{r.infill.map((line, k) => (*/}
+                {/*  // <arrowHelper*/}
+                {/*  //   key={k}*/}
+                {/*  //   args={[line[0], line[1], line[2], 0x00ff00]}*/}
+                {/*  // />*/}
+                {/*  <mesh key={k} position={line[1]}>*/}
+                {/*    <sphereGeometry args={[1]} />*/}
+                {/*    <meshBasicMaterial color={0x00ff00} />*/}
+                {/*  </mesh>*/}
+                {/*))}*/}
               </group>
             ))}
             <group rotation-x={-Math.PI / 2}>
