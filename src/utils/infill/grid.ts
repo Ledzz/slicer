@@ -1,5 +1,5 @@
 import { Box3, Line3, Plane, Vector3 } from "three";
-import { debugPlane } from "../helper.ts";
+import { debugPlane } from "../helper";
 
 export function gridInfill({
   contours,

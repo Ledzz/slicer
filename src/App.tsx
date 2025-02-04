@@ -3,15 +3,15 @@ import { Button, Layout, theme } from "antd";
 import Sider from "antd/es/layout/Sider";
 import { Content } from "antd/es/layout/layout";
 import { Canvas } from "@react-three/fiber";
-import { noEvents, PointerEvents } from "./utils/pointer-events.ts";
+import { noEvents, PointerEvents } from "./utils/pointer-events";
 import { OrbitHandles } from "@react-three/handle";
-import { Stl } from "./Stl.tsx";
+import { Stl } from "./Stl";
 import { Environment } from "@react-three/drei";
 import { Suspense } from "react";
 import { DownloadOutlined } from "@ant-design/icons";
-import { slice } from "./utils/slicer.ts";
-import { generateInfill } from "./utils/infill.ts";
-import { helperGroup } from "./utils/helper.ts";
+import { slice } from "./utils/slicer";
+import { generateInfill } from "./utils/infill";
+import { helperGroup } from "./utils/helper";
 
 const file = "/baseplate-1x1.stl";
 

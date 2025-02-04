@@ -1,7 +1,7 @@
-import { slice } from "./slicer.ts";
+import { slice } from "./slicer";
 import { Box3 } from "three";
-import { gridInfill } from "./infill/grid.ts";
-import { debugLine } from "./helper.ts";
+import { gridInfill } from "./infill/grid";
+import { debugLine } from "./helper";
 
 export const generateInfill = (data: Awaited<ReturnType<typeof slice>>) => {
   const bounds = new Box3();
