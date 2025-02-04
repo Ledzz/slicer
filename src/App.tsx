@@ -80,9 +80,9 @@ function App() {
               <primitive object={helperGroup} />
             </group>
             <group rotation-x={-Math.PI / 2}>
-              {withInfill.map((r, i) => (
+              {withInfill.layers.map((r, i) => (
                 <group key={i}>
-                  <primitive object={r.line} />
+                  {/*<primitive object={r.line} />*/}
                   {/*{r.infill.map((line, k) => (*/}
                   {/*  // <arrowHelper*/}
                   {/*  //   key={k}*/}

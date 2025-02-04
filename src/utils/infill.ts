@@ -14,7 +14,7 @@ export const generateInfill = (data: Awaited<ReturnType<typeof slice>>) => {
     layers: data.layers.map((layer) => ({
       ...layer,
       infill: gridInfill({
-        contours: layer.contours,
+        layer,
         density: 0.2,
         bounds,
         data,
