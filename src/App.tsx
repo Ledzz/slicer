@@ -38,6 +38,7 @@ function App() {
             borderInlineEnd: `1px ${lineType} ${colorSplit}`,
             padding: "16px",
             overflow: "auto",
+            display: "none",
           }}
           width={300}
         >
@@ -53,6 +54,7 @@ function App() {
               position: [-100, 60, 100],
             }}
             events={noEvents}
+            style={{ minHeight: "100vh" }}
           >
             <Suspense
               fallback={

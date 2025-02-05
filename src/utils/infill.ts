@@ -1,6 +1,5 @@
 import { slice } from "./slicer";
 import { Box3 } from "three";
-import { debugLine } from "./helper.ts";
 import { gridInfill } from "./infill/grid.ts";
 
 export const generateInfill = (data: Awaited<ReturnType<typeof slice>>) => {
@@ -22,11 +21,11 @@ export const generateInfill = (data: Awaited<ReturnType<typeof slice>>) => {
     })),
   };
 
-  ret.layers.forEach((layer) => {
-    layer.infill.lines.forEach((l) => {
-      debugLine(l[0], l[1]);
-    });
-  });
+  // ret.layers.forEach((layer) => {
+  //   layer.infill.lines.forEach((l) => {
+  //     debugLine(l[0], l[1]);
+  //   });
+  // });
 
   return ret;
 };

@@ -30,8 +30,8 @@ export const slice = async (file: string) => {
 
   // TODO: We need to lay model flat on the bed
 
-  for (let i = 0; i < layerCount; i++) {
-    // for (let i = 0; i < 1; i++) {
+  // for (let i = 0; i < layerCount; i++) {
+  for (let i = 0; i < 1; i++) {
     const height = i * layerHeight;
 
     const layer = createLayer(height);
@@ -49,6 +49,7 @@ export const slice = async (file: string) => {
       height,
       line,
       polygons,
+      crossection,
     };
   }
 };

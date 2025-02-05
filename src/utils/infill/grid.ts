@@ -1,6 +1,7 @@
-import { Box3, Line3, Plane, Vector3 } from "three";
-import { debugPlane, debugPoint } from "../helper";
+import { Box3, Vector3 } from "three";
 import { slice } from "../slicer.ts";
+import { CrossSection, SimplePolygon, Vec2 } from "manifold-3d";
+import { debugLine2 } from "../helper.ts";
 
 export function gridInfill({
   contours,
@@ -15,128 +16,125 @@ export function gridInfill({
   data: Awaited<ReturnType<typeof slice>>;
   layer: Awaited<ReturnType<typeof slice>>["layers"][0];
 }) {
-  const lines: [Vector3, Vector3][] = [];
-  const rotatedBounds = new Box3(
-    new Vector3(bounds.min.x, bounds.max.y, bounds.min.z),
-    new Vector3(bounds.max.x, bounds.min.y, bounds.max.z),
-  );
+  const infill = [];
 
-  // gridPass({
-  //   lineDirection: new Vector3(1, 1, 0).normalize(),
-  //   contours,
-  //   bounds,
-  //   lines,
-  //   layer,
-  // });
-  gridPass({
-    lineDirection: new Vector3(1, -1, 0).normalize(),
-    contours,
-    bounds: rotatedBounds,
-    lines,
-    layer,
-  });
-
-  debugPoint(rotatedBounds.min);
-  debugPoint(rotatedBounds.max);
-
-  return { lines };
+  const line = new InfillLine();
+  for (let k = -50; k < 50; k++) {
+    line.lines.push(new Line(-100 + k, -100, 100 + k, 100));
+    line.lines.push(new Line(100 + k, -100, -100 + k, 100));
+  }
+  line.trim(layer.crossection);
+  infill.push(line);
 }
 
-function gridPass({
-  lineDirection,
-  contours,
-  bounds,
-  lines,
-  data,
-  layer,
-}: {
-  lineDirection: Vector3;
-  contours: Vector3[][];
-  bounds: Box3;
-  lines: [Vector3, Vector3][];
-  data: Awaited<ReturnType<typeof slice>>;
-  layer: Awaited<ReturnType<typeof slice>>["layers"][0];
-}) {
-  const firstPlane = new Plane().setFromNormalAndCoplanarPoint(
-    lineDirection,
-    new Vector3(),
-  );
+class InfillLine {
+  lines: Line[] = [];
 
-  const distanceBetween = 5;
+  trim(crossection: CrossSection) {
+    const polygons = crossection.toPolygons();
 
-  let i = 0;
-
-  const planes: Plane[] = [firstPlane];
-
-  while (true) {
-    const plane = firstPlane.clone();
-
-    plane.constant -= distanceBetween * i;
-
-    if (plane.distanceToPoint(bounds.max) >= 0) {
-      i++;
-      planes.push(plane);
-      continue;
-    }
-    break;
-  }
-  i = 0;
-  while (true) {
-    const plane = firstPlane.clone();
-
-    plane.constant += distanceBetween * i;
-
-    if (plane.distanceToPoint(bounds.min) <= 0) {
-      i++;
-      planes.push(plane);
-      continue;
-    }
-    break;
-  }
-
-  planes.forEach((plane) => {
-    debugPlane(plane);
-
-    const intersections = [];
-
-    for (const polygon of layer.polygons) {
-      // Check each edge of the polygon
-      for (let i = 0; i < polygon.length; i++) {
-        const v1 = polygon[i];
-        const v2 = polygon[(i + 1) % polygon.length]; // wrap around to first vertex
-
-        const v31 = new Vector3(v1[0], v1[1], layer.height);
-        const v32 = new Vector3(v2[0], v2[1], layer.height);
-
-        const intersection = lineIntersectPlane(plane, [v31, v32]);
-
-        if (intersection) {
-          intersections.push(intersection);
-        }
-      }
-    }
-    const far = new Vector3(-1000, 1000, 0);
-
-    const sorted = [...intersections].sort(
-      (a, b) => a.distanceTo(far) - b.distanceTo(far),
+    const split = this.lines.flatMap((line) =>
+      line.splitByPolygons(polygons).filter((l, i) => i % 2 !== 0),
     );
 
-    for (let i = 0; i < sorted.length; i += 2) {
-      const p1 = sorted[i];
-      const p2 = sorted[i + 1];
-
-      if (!p2) {
-        continue;
-      }
-
-      lines.push([p1, p2]);
-    }
-  });
+    split.forEach(debugLine2);
+  }
 }
 
-function lineIntersectPlane(
-  plane: Plane,
-  [start, end]: [Vector3, Vector3],
-): Vector3 | null {
-  return plane.intersectLine(new Line3(start, end), new Vector3());
+function lineIntersectLine(a: Vec2, b: Vec2, c: Vec2, d: Vec2): Vec2 | null {
+  const x0 = c[0];
+  const y0 = c[1];
+  const x1 = d[0];
+  const y1 = d[1];
+
+  const x2 = a[0];
+  const y2 = a[1];
+  const x3 = b[0];
+  const y3 = b[1];
+
+  const s1_x = x1 - x0;
+  const s1_y = y1 - y0;
+  const s2_x = x3 - x2;
+  const s2_y = y3 - y2;
+
+  const s =
+    (-s1_y * (x0 - x2) + s1_x * (y0 - y2)) / (-s2_x * s1_y + s1_x * s2_y);
+  const t =
+    (s2_x * (y0 - y2) - s2_y * (x0 - x2)) / (-s2_x * s1_y + s1_x * s2_y);
+
+  if (s >= 0 && s <= 1 && t >= 0 && t <= 1) {
+    return [x0 + t * s1_x, y0 + t * s1_y];
+  }
+
+  return null;
+}
+
+function polygonIntersectLine(polygon: SimplePolygon, line: Line): Vec2[] {
+  const intersections = [];
+  for (let i = 0; i < polygon.length; i++) {
+    const a = polygon[i];
+    const b = polygon[(i + 1) % polygon.length];
+    const intersection = lineIntersectLine(a, b, line.start, line.end);
+    if (intersection) {
+      intersections.push(intersection);
+    }
+  }
+  return removeDuplicateTuples(intersections);
+}
+
+class Line {
+  start: Vec2;
+  end: Vec2;
+
+  constructor(x1: number, y1: number, x2: number, y2: number) {
+    this.start = [x1, y1];
+    this.end = [x2, y2];
+  }
+
+  splitByPolygons(polygons: SimplePolygon[]): Line[] {
+    let lines = [this];
+
+    for (const polygon of polygons) {
+      const newLines = [];
+      for (const line of lines) {
+        newLines.push(...line.splitByPolygon(polygon));
+      }
+      lines = newLines;
+    }
+
+    return lines;
+  }
+
+  splitByPolygon(polygon: SimplePolygon): Line[] {
+    const lines = [];
+    const intersections = polygonIntersectLine(polygon, this).sort(
+      (a, b) => dist(a, this.start) - dist(b, this.start),
+    );
+
+    if (intersections.length === 0) {
+      return [this];
+    }
+
+    intersections.unshift(this.start);
+    intersections.push(this.end);
+
+    for (let i = 0; i < intersections.length - 1; i++) {
+      const start = intersections[i];
+      const end = intersections[i + 1];
+      lines.push(new Line(start[0], start[1], end[0], end[1]));
+    }
+
+    return lines;
+  }
+}
+
+function dist(a: Vec2, b: Vec2) {
+  return Math.sqrt((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2);
+}
+
+function removeDuplicateTuples(tuples: Vec2[]): Vec2[] {
+  return tuples.filter(
+    (tuple, index, array) =>
+      index === array.findIndex((t) => t[0] === tuple[0] && t[1] === tuple[1]),
+  );
 }
