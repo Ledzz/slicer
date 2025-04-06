@@ -4,23 +4,16 @@
 import { polygonsToGrayscale } from "./toGrayscale.ts";
 
 class GooFileGenerator {
-  // Use ArrayBuffer and DataView for browser compatibility
-  private buffer: ArrayBuffer;
-  private dataView: DataView;
-  private position: number = 0;
+  // Use array of chunks for flexible size
+  private chunks: Uint8Array[] = [];
+  private offsets: Map<string, number> = new Map(); // Track special offsets for later updates
+  private totalLength: number = 0;
   private encoder: TextEncoder = new TextEncoder();
 
-  constructor(
-    private outputPath: string,
-    private totalSize: number = 1024 * 1024,
-  ) {
-    // Initialize buffer with estimated size
-    this.buffer = new ArrayBuffer(this.totalSize);
-    this.dataView = new DataView(this.buffer);
-  }
+  constructor(private outputPath: string) {}
 
   /**
-   * Write header information to the buffer
+   * Write header information
    */
   public writeHeader(options: {
     version: string; // 4 bytes
@@ -276,7 +269,7 @@ class GooFileGenerator {
 
     // 60. Offset of LayerContent - 4 bytes
     // We'll update this later when we know the exact position
-    const layerContentOffsetPos = this.position;
+    this.offsets.set("layerContentOffset", this.totalLength);
     this.writeInt32(0); // Placeholder
 
     // 61. Gray scale level - 1 byte
@@ -285,12 +278,8 @@ class GooFileGenerator {
     // 62. Transition layers - 2 bytes
     this.writeInt16(options.transitionLayers);
 
-    // Return to update the layer content offset
-    const layerContentOffset = this.position;
-    const currentPos = this.position;
-    this.position = layerContentOffsetPos;
-    this.writeInt32(layerContentOffset);
-    this.position = currentPos;
+    // Mark the start of layer content for later offset calculation
+    this.offsets.set("layerContentStart", this.totalLength);
   }
 
   /**
@@ -404,11 +393,43 @@ class GooFileGenerator {
   }
 
   /**
+   * Finalizes the file by fixing up any offsets and creating the final buffer
+   */
+  private finalizeFile(): Uint8Array {
+    // Create the final buffer with the exact size
+    const finalBuffer = new Uint8Array(this.totalLength);
+
+    // Copy all chunks into the final buffer
+    let position = 0;
+    for (const chunk of this.chunks) {
+      finalBuffer.set(chunk, position);
+      position += chunk.length;
+    }
+
+    // Fix up the layer content offset
+    if (
+      this.offsets.has("layerContentOffset") &&
+      this.offsets.has("layerContentStart")
+    ) {
+      const offsetPos = this.offsets.get("layerContentOffset")!;
+      const layerContentPos = this.offsets.get("layerContentStart")!;
+
+      // Write the offset at the correct position in big-endian order
+      finalBuffer[offsetPos] = (layerContentPos >> 24) & 0xff;
+      finalBuffer[offsetPos + 1] = (layerContentPos >> 16) & 0xff;
+      finalBuffer[offsetPos + 2] = (layerContentPos >> 8) & 0xff;
+      finalBuffer[offsetPos + 3] = layerContentPos & 0xff;
+    }
+
+    return finalBuffer;
+  }
+
+  /**
    * Save the file to disk (browser implementation using download)
    */
   public saveFile(): Blob {
-    // Create a new buffer with the exact length of data written
-    const finalBuffer = this.buffer.slice(0, this.position);
+    // Finalize the file
+    const finalBuffer = this.finalizeFile();
 
     // Create a Blob from the buffer
     const blob = new Blob([finalBuffer], { type: "application/octet-stream" });
@@ -491,7 +512,7 @@ class GooFileGenerator {
     for (let i = 1; i < result.length; i++) {
       checksum = (checksum + result[i]) & 0xff;
     }
-    result.push(checksum);
+    result.push(255 - checksum);
 
     return new Uint8Array(result);
   }
@@ -548,37 +569,61 @@ class GooFileGenerator {
   }
 
   private writeUint8Array(array: Uint8Array): void {
-    for (let i = 0; i < array.length; i++) {
-      this.dataView.setUint8(this.position + i, array[i]);
-    }
-    this.position += array.length;
+    this.chunks.push(array);
+    this.totalLength += array.length;
   }
 
   private writeInt16(value: number): void {
-    this.dataView.setInt16(this.position, value, true); // true = little endian
-    this.position += 2;
+    // Create a 2-byte buffer
+    const buffer = new Uint8Array(2);
+
+    // Write in big-endian order (most significant byte first)
+    buffer[0] = (value >> 8) & 0xff;
+    buffer[1] = value & 0xff;
+
+    this.writeUint8Array(buffer);
   }
 
   private writeInt32(value: number): void {
-    this.dataView.setInt32(this.position, value, true); // true = little endian
-    this.position += 4;
+    // Create a 4-byte buffer
+    const buffer = new Uint8Array(4);
+
+    // Write in big-endian order (most significant byte first)
+    buffer[0] = (value >> 24) & 0xff;
+    buffer[1] = (value >> 16) & 0xff;
+    buffer[2] = (value >> 8) & 0xff;
+    buffer[3] = value & 0xff;
+
+    this.writeUint8Array(buffer);
   }
 
   private writeFloat(value: number): void {
-    this.dataView.setFloat32(this.position, value, true); // true = little endian
-    this.position += 4;
+    // Create a temporary ArrayBuffer to use DataView for float conversion
+    const tempBuffer = new ArrayBuffer(4);
+    const view = new DataView(tempBuffer);
+    view.setFloat32(0, value, false); // false = big endian
+
+    // Copy to our Uint8Array with explicit order
+    const buffer = new Uint8Array(4);
+    buffer[0] = view.getUint8(0);
+    buffer[1] = view.getUint8(1);
+    buffer[2] = view.getUint8(2);
+    buffer[3] = view.getUint8(3);
+
+    this.writeUint8Array(buffer);
   }
 
   private writeBool(value: boolean): void {
-    this.dataView.setUint8(this.position, value ? 1 : 0);
-    this.position += 1;
+    const buffer = new Uint8Array(1);
+    buffer[0] = value ? 1 : 0;
+    this.writeUint8Array(buffer);
   }
 
   private writeDelimiter(): void {
-    this.dataView.setUint8(this.position, 0x0d);
-    this.position += 1;
-    this.dataView.setUint8(this.position, 0x0a);
-    this.position += 1;
+    const buffer = new Uint8Array(2);
+    buffer[0] = 0x0d;
+    buffer[1] = 0x0a;
+    this.writeUint8Array(buffer);
   }
 
   private writePreviewImage(
@@ -586,13 +631,20 @@ class GooFileGenerator {
     width: number,
     height: number,
   ): void {
+    // Create a buffer for the entire image
+    const buffer = new Uint8Array(data.length * 2);
+
+    // Write each 16-bit value in big-endian order
     for (let i = 0; i < data.length; i++) {
-      this.dataView.setUint16(this.position, data[i], true); // true = little endian
-      this.position += 2;
+      const value = data[i];
+      // RGB565 format, big-endian
+      buffer[i * 2] = (value >> 8) & 0xff; // High byte first
+      buffer[i * 2 + 1] = value & 0xff; // Low byte second
     }
+
+    this.writeUint8Array(buffer);
   }
 }
-
 export function exportGoo(result) {
   const width = 15120;
   const height = 6230;
@@ -604,6 +656,8 @@ export function exportGoo(result) {
   const bottomLayers = 5;
   const bottomExposureTime = 30;
   const exposureTime = 2;
+  const totalLayers = result.layers.length;
+  console.log(totalLayers);
 
   generator.writeHeader({
     version: "3.0",
@@ -635,7 +689,7 @@ export function exportGoo(result) {
     afterRetractTime: 0.5,
     bottomExposureTime,
     bottomLayers,
-    totalLayers: result.layers.length,
+    totalLayers,
     bottomLiftDistance: 0,
     bottomLiftSpeed: 0,
     liftDistance: 0,
