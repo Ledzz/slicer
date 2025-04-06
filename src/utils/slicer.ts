@@ -24,8 +24,8 @@ export const slice = async (file: string) => {
   const mesh = geometry2mesh(geometry);
   const m = manifold.Manifold.ofMesh(mesh);
   const obj = new Mesh(geometry);
-  const bbox = new Box3().setFromObject(obj);
-  const modelHeight = bbox.max.z - bbox.min.z;
+  const bounds = new Box3().setFromObject(obj);
+  const modelHeight = bounds.max.z - bounds.min.z;
   const layerCount = Math.ceil(modelHeight / layerHeight);
 
   // TODO: We need to lay model flat on the bed
@@ -38,7 +38,7 @@ export const slice = async (file: string) => {
     layers.push(layer);
   }
 
-  return { layers, geometry };
+  return { layers, geometry, bounds };
 
   function createLayer(height: number) {
     const crossection = m.slice(height);

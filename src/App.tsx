@@ -12,6 +12,7 @@ import { DownloadOutlined } from "@ant-design/icons";
 import { slice } from "./utils/slicer";
 import { helperGroup } from "./utils/helper";
 import { setPreviewLayerIndex, usePreviewStore } from "./previewStore.ts";
+import { ImagePreview } from "./ImagePreview.tsx";
 
 const file = "/baseplate-1x1.stl";
 
@@ -53,6 +54,11 @@ function App() {
             onChange={(e) => {
               setPreviewLayerIndex(+e.target.value);
             }}
+          />
+
+          <ImagePreview
+            result={result}
+            layer={result.layers[previewLayerIndex]}
           />
         </Sider>
         <Content>
