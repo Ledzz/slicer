@@ -25,13 +25,13 @@ export const slice = async (file: string) => {
   const m = manifold.Manifold.ofMesh(mesh);
   const obj = new Mesh(geometry);
   const bbox = new Box3().setFromObject(obj);
-  const modelHeight = bbox.max.y - bbox.min.y;
+  const modelHeight = bbox.max.z - bbox.min.z;
   const layerCount = Math.ceil(modelHeight / layerHeight);
 
   // TODO: We need to lay model flat on the bed
 
-  // for (let i = 0; i < layerCount; i++) {
-  for (let i = 0; i < 1; i++) {
+  for (let i = 0; i < layerCount; i++) {
+    // for (let i = 0; i < 1; i++) {
     const height = i * layerHeight;
 
     const layer = createLayer(height);

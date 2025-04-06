@@ -11,17 +11,18 @@ import { Suspense } from "react";
 import { DownloadOutlined } from "@ant-design/icons";
 import { slice } from "./utils/slicer";
 import { helperGroup } from "./utils/helper";
-import { generateInfill } from "./utils/infill.ts";
+import { setPreviewLayerIndex, usePreviewStore } from "./previewStore.ts";
 
 const file = "/baseplate-1x1.stl";
 
 const result = await slice(file);
-const withInfill = generateInfill(result);
 
 function App() {
   const {
     token: { colorBgContainer, borderRadiusLG, colorSplit, lineType },
   } = theme.useToken();
+
+  const previewLayerIndex = usePreviewStore((s) => s.previewLayerIndex);
 
   return (
     <>
@@ -38,13 +39,21 @@ function App() {
             borderInlineEnd: `1px ${lineType} ${colorSplit}`,
             padding: "16px",
             overflow: "auto",
-            display: "none",
           }}
           width={300}
         >
           <Button type="primary" icon={<DownloadOutlined />} onClick={slice}>
             Slice
           </Button>
+
+          <input
+            type={"range"}
+            min={0}
+            max={result.layers.length - 1}
+            onChange={(e) => {
+              setPreviewLayerIndex(+e.target.value);
+            }}
+          />
         </Sider>
         <Content>
           <Canvas
@@ -82,7 +91,9 @@ function App() {
 
               <axesHelper scale={60} />
 
-              {withInfill.layers.map((r, i) => (
+              <primitive object={result.layers[previewLayerIndex].line} />
+
+              {result.layers.map((r, i) => (
                 <group key={i}>
                   {/*<primitive object={r.line} />*/}
                   {/*{r.infill.map((line, k) => (*/}
