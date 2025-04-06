@@ -798,21 +798,9 @@ export async function exportGoo(result) {
     willReadFrequently: true,
   })!;
 
-  const data = await Promise.all(
-    result.layers.map((layer) => {
-      polygonsToGrayscale(context, layer.polygons, w, h, width, height);
-      const data = context.getImageData(0, 0, width, height).data;
-      const grayscaleData = new Uint8Array(width * height);
-      for (let i = 0; i < data.length; i += 4) {
-        // Assuming grayscale, take the red channel
-        grayscaleData[i / 4] = data[i];
-      }
-      console.log(`Layer ${++index} of ${totalLayers} processed.`);
+  const grayscaleData = new Uint8Array(width * height);
 
-      return Promise.resolve(grayscaleData);
-    }),
-  );
-  data.forEach((layerData, i) => {
+  result.layers.forEach((layer, i) => {
     generator.writeLayerDefinition({
       pauseFlag: 0,
       pausePositionZ: 200,
@@ -833,7 +821,14 @@ export async function exportGoo(result) {
       lightPWM: 255,
     });
 
-    generator.writeLayerImageData(layerData, width, height);
+    polygonsToGrayscale(context, layer.polygons, w, h, width, height);
+    const imageData = context.getImageData(0, 0, width, height);
+    for (let i = 0; i < imageData.data.length; i += 4) {
+      // Assuming grayscale, take the red channel
+      grayscaleData[i / 4] = imageData.data[i];
+    }
+    generator.writeLayerImageData(grayscaleData, width, height);
+    console.log(`Layer ${++index} of ${totalLayers} processed.`);
   });
 
   generator.writeEndingString();
