@@ -2,6 +2,7 @@
 // Browser-compatible version using ArrayBuffer and DataView instead of Node.js Buffer
 
 import { polygonsToGrayscale } from "./toGrayscale.ts";
+import { X_SIZE, Y_SIZE } from "./constants.ts";
 
 class GooFileGenerator {
   // Use array of chunks for flexible size
@@ -469,38 +470,26 @@ class GooFileGenerator {
       }
 
       if (pixel === 0) {
-        // Case: all 0x0 pixels
-        this.encodeRunLength(result, 0b00000000, count);
+        // Case: all 0x0 pixels (Byte0[7:6] = 00)
+        this.encodeZeroPixelRun(result, count);
       } else if (pixel === 255) {
-        // Case: all 0xff pixels
-        this.encodeRunLength(result, 0b11000000, count);
+        // Case: all 0xff pixels (Byte0[7:6] = 11)
+        this.encodeFFPixelRun(result, count);
       } else if (i > 0) {
-        // Case: differential encoding
         const diff = pixel - prevPixel;
         if (diff > 0 && diff <= 15) {
-          // Positive diff
-          if (count === 1) {
-            result.push(0b10000000 | diff);
-          } else {
-            result.push(0b10010000 | diff);
-            result.push(count);
-          }
+          // Positive diff (Byte0[7:6] = 10, Byte0[5:4] = 00 or 01)
+          this.encodePositiveDiff(result, diff, count);
         } else if (diff < 0 && diff >= -15) {
-          // Negative diff
-          const absDiff = Math.abs(diff);
-          if (count === 1) {
-            result.push(0b10100000 | absDiff);
-          } else {
-            result.push(0b10110000 | absDiff);
-            result.push(count);
-          }
+          // Negative diff (Byte0[7:6] = 10, Byte0[5:4] = 10 or 11)
+          this.encodeNegativeDiff(result, Math.abs(diff), count);
         } else {
-          // Regular gray value
-          this.encodeRunLength(result, 0b01000000, count, pixel);
+          // Gray value (Byte0[7:6] = 01)
+          this.encodeGrayValue(result, pixel, count);
         }
       } else {
-        // Case: gray value (first pixel)
-        this.encodeRunLength(result, 0b01000000, count, pixel);
+        // First pixel, always use gray value encoding
+        this.encodeGrayValue(result, pixel, count);
       }
 
       prevPixel = pixel;
@@ -509,8 +498,8 @@ class GooFileGenerator {
 
     // Calculate checksum (8-bit sum of all bytes except the magic number)
     let checksum = 0;
-    for (let i = 1; i < result.length; i++) {
-      checksum = (checksum + result[i]) & 0xff;
+    for (let j = 1; j < result.length; j++) {
+      checksum = (checksum + result[j]) & 0xff;
     }
     result.push(255 - checksum);
 
@@ -518,37 +507,120 @@ class GooFileGenerator {
   }
 
   /**
-   * Encode run length for RLE
+   * Encode a run of 0x0 pixels (Byte0[7:6] = 00)
    */
-  private encodeRunLength(
-    result: number[],
-    prefix: number,
-    count: number,
-    value?: number,
-  ): void {
+  private encodeZeroPixelRun(result: number[], count: number): void {
     if (count <= 15) {
-      // 4-bit run-length
-      result.push(prefix | count);
+      // 4-bit run-length (Byte0[5:4] = 00)
+      result.push(0b00000000 | count);
     } else if (count <= 0xfff) {
-      // 12-bit run-length
-      result.push(prefix | 0x10 | (count & 0x0f));
+      // 12-bit run-length (Byte0[5:4] = 01)
+      result.push(0b00010000 | (count & 0x0f));
       result.push((count >> 4) & 0xff);
     } else if (count <= 0xfffff) {
-      // 20-bit run-length
-      result.push(prefix | 0x20 | (count & 0x0f));
+      // 20-bit run-length (Byte0[5:4] = 10)
+      result.push(0b00100000 | (count & 0x0f));
       result.push((count >> 4) & 0xff);
       result.push((count >> 12) & 0xff);
     } else {
-      // 28-bit run-length
-      result.push(prefix | 0x30 | (count & 0x0f));
+      // 28-bit run-length (Byte0[5:4] = 11)
+      result.push(0b00110000 | (count & 0x0f));
+      result.push((count >> 4) & 0xff);
+      result.push((count >> 12) & 0xff);
+      result.push((count >> 20) & 0xff);
+    }
+  }
+
+  /**
+   * Encode a run of gray values between 0x01 and 0xFE (Byte0[7:6] = 01)
+   */
+  private encodeGrayValue(
+    result: number[],
+    value: number,
+    count: number,
+  ): void {
+    if (count <= 15) {
+      // 4-bit run-length (Byte0[5:4] = 00)
+      result.push(0b01000000 | count);
+    } else if (count <= 0xfff) {
+      // 12-bit run-length (Byte0[5:4] = 01)
+      result.push(0b01010000 | (count & 0x0f));
+      result.push((count >> 4) & 0xff);
+    } else if (count <= 0xfffff) {
+      // 20-bit run-length (Byte0[5:4] = 10)
+      result.push(0b01100000 | (count & 0x0f));
+      result.push((count >> 4) & 0xff);
+      result.push((count >> 12) & 0xff);
+    } else {
+      // 28-bit run-length (Byte0[5:4] = 11)
+      result.push(0b01110000 | (count & 0x0f));
       result.push((count >> 4) & 0xff);
       result.push((count >> 12) & 0xff);
       result.push((count >> 20) & 0xff);
     }
 
-    // For gray value mode, add the pixel value
-    if ((prefix & 0xc0) === 0x40 && value !== undefined) {
-      result.push(value);
+    // Add the gray value after byte0
+    result.push(value);
+  }
+
+  /**
+   * Encode a positive diff value (Byte0[7:6] = 10)
+   */
+  private encodePositiveDiff(
+    result: number[],
+    diff: number,
+    count: number,
+  ): void {
+    if (count === 1) {
+      // Single pixel diff (Byte0[5:4] = 00)
+      result.push(0b10000000 | diff);
+    } else {
+      // Run-length diff (Byte0[5:4] = 01)
+      result.push(0b10010000 | diff);
+      result.push(count);
+    }
+  }
+
+  /**
+   * Encode a negative diff value (Byte0[7:6] = 10)
+   */
+  private encodeNegativeDiff(
+    result: number[],
+    absDiff: number,
+    count: number,
+  ): void {
+    if (count === 1) {
+      // Single pixel diff (Byte0[5:4] = 10)
+      result.push(0b10100000 | absDiff);
+    } else {
+      // Run-length diff (Byte0[5:4] = 11)
+      result.push(0b10110000 | absDiff);
+      result.push(count);
+    }
+  }
+
+  /**
+   * Encode a run of 0xFF pixels (Byte0[7:6] = 11)
+   */
+  private encodeFFPixelRun(result: number[], count: number): void {
+    if (count <= 15) {
+      // 4-bit run-length (Byte0[5:4] = 00)
+      result.push(0b11000000 | count);
+    } else if (count <= 0xfff) {
+      // 12-bit run-length (Byte0[5:4] = 01)
+      result.push(0b11010000 | (count & 0x0f));
+      result.push((count >> 4) & 0xff);
+    } else if (count <= 0xfffff) {
+      // 20-bit run-length (Byte0[5:4] = 10)
+      result.push(0b11100000 | (count & 0x0f));
+      result.push((count >> 4) & 0xff);
+      result.push((count >> 12) & 0xff);
+    } else {
+      // 28-bit run-length (Byte0[5:4] = 11)
+      result.push(0b11110000 | (count & 0x0f));
+      result.push((count >> 4) & 0xff);
+      result.push((count >> 12) & 0xff);
+      result.push((count >> 20) & 0xff);
     }
   }
 
@@ -645,7 +717,7 @@ class GooFileGenerator {
     this.writeUint8Array(buffer);
   }
 }
-export function exportGoo(result) {
+export async function exportGoo(result) {
   const width = 15120;
   const height = 6230;
 
@@ -657,7 +729,6 @@ export function exportGoo(result) {
   const bottomExposureTime = 30;
   const exposureTime = 2;
   const totalLayers = result.layers.length;
-  console.log(totalLayers);
 
   generator.writeHeader({
     version: "3.0",
@@ -674,8 +745,8 @@ export function exportGoo(result) {
     yResolution: height,
     xMirror: false,
     yMirror: true,
-    xSizePlatform: 211.68,
-    ySizePlatform: 118.37,
+    xSizePlatform: X_SIZE,
+    ySizePlatform: Y_SIZE,
     zSizePlatform: 220,
     layerThickness: 0.05,
     exposureTime,
@@ -718,15 +789,30 @@ export function exportGoo(result) {
     transitionLayers: 8,
   });
 
-  result.layers.forEach((layer, i) => {
-    const c1 = polygonsToGrayscale(layer.polygons, w, h, width, height);
-    const data = c1.getContext("2d").getImageData(0, 0, width, height).data;
-    const grayscaleData = new Uint8Array(width * height);
-    for (let i = 0; i < data.length; i += 4) {
-      const grayValue = data[i]; // Assuming grayscale, take the red channel
-      grayscaleData[i / 4] = grayValue;
-    }
+  let index = 0;
+  const canvas = new OffscreenCanvas(width, height);
 
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d", {
+    willReadFrequently: true,
+  })!;
+
+  const data = await Promise.all(
+    result.layers.map((layer) => {
+      polygonsToGrayscale(context, layer.polygons, w, h, width, height);
+      const data = context.getImageData(0, 0, width, height).data;
+      const grayscaleData = new Uint8Array(width * height);
+      for (let i = 0; i < data.length; i += 4) {
+        // Assuming grayscale, take the red channel
+        grayscaleData[i / 4] = data[i];
+      }
+      console.log(`Layer ${++index} of ${totalLayers} processed.`);
+
+      return Promise.resolve(grayscaleData);
+    }),
+  );
+  data.forEach((layerData, i) => {
     generator.writeLayerDefinition({
       pauseFlag: 0,
       pausePositionZ: 200,
@@ -747,7 +833,7 @@ export function exportGoo(result) {
       lightPWM: 255,
     });
 
-    generator.writeLayerImageData(grayscaleData, width, height);
+    generator.writeLayerImageData(layerData, width, height);
   });
 
   generator.writeEndingString();

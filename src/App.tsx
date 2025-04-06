@@ -14,8 +14,10 @@ import { helperGroup } from "./utils/helper";
 import { setPreviewLayerIndex, usePreviewStore } from "./previewStore.ts";
 import { ImagePreview } from "./ImagePreview.tsx";
 import { exportGoo } from "./export/goo.ts";
+import { X_SIZE, Y_SIZE } from "./export/constants.ts";
 
-const file = "/baseplate-1x1.stl";
+// const file = "/baseplate-1x1.stl";
+const file = "/cube.stl";
 
 const result = await slice(file);
 
@@ -103,6 +105,10 @@ function App() {
 
             <group rotation-x={-Math.PI / 2}>
               <primitive object={helperGroup} />
+              <mesh>
+                <planeGeometry args={[X_SIZE, Y_SIZE]} />
+                <meshBasicMaterial wireframe color={0x999999} />
+              </mesh>
 
               <axesHelper scale={60} />
 

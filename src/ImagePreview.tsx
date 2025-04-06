@@ -1,5 +1,6 @@
 import { FC, useEffect, useState } from "react";
 import { polygonsToGrayscale } from "./export/toGrayscale.ts";
+import { X_SIZE, Y_SIZE } from "./export/constants.ts";
 
 export const ImagePreview: FC = ({ layer, result }) => {
   const [canvas, setCanvas] = useState<HTMLCanvasElement | null>(null);
@@ -7,14 +8,13 @@ export const ImagePreview: FC = ({ layer, result }) => {
   const height = 128;
   useEffect(() => {
     if (canvas) {
-      const w = result.bounds.max.x - result.bounds.min.x;
-      const h = result.bounds.max.y - result.bounds.min.y;
-      const c1 = polygonsToGrayscale(layer.polygons, w, h, width, height);
-      const ctx = canvas.getContext("2d");
-      if (!ctx) {
-        throw new Error("Could not get canvas context");
-      }
-      ctx.drawImage(c1, 0, 0);
+      const w = X_SIZE;
+      const h = Y_SIZE;
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext("2d")!;
+      polygonsToGrayscale(context, layer.polygons, w, h, width, height);
+      // ctx.drawImage(c1, 0, 0);
     }
   }, [canvas, layer.polygons, result]);
 

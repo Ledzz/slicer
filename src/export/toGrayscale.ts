@@ -1,6 +1,7 @@
 import { SimplePolygon } from "manifold-3d";
 
 export function polygonsToGrayscale(
+  context: CanvasRenderingContext2D,
   polygons: SimplePolygon[],
   originalWidth: number,
   originalHeight: number,
@@ -8,15 +9,7 @@ export function polygonsToGrayscale(
   height: number,
   backgroundColor: number = 0,
   polygonColor: number = 255,
-): OffscreenCanvas {
-  const canvas = new OffscreenCanvas(width, height);
-  const context = canvas.getContext("2d");
-  if (!context) {
-    throw new Error("Could not get canvas context");
-  }
-
-  canvas.width = width;
-  canvas.height = height;
+) {
   // Fill the canvas with the background color
   context.fillStyle = `rgb(${backgroundColor}, ${backgroundColor}, ${backgroundColor})`;
   context.fillRect(0, 0, width, height);
@@ -41,5 +34,4 @@ export function polygonsToGrayscale(
     context.closePath();
     context.fill();
   }
-  return canvas;
 }
