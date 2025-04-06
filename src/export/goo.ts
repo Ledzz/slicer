@@ -1,6 +1,8 @@
 // goo-file-generator.ts
 // Browser-compatible version using ArrayBuffer and DataView instead of Node.js Buffer
 
+import { polygonsToGrayscale } from "./toGrayscale.ts";
+
 class GooFileGenerator {
   // Use ArrayBuffer and DataView for browser compatibility
   private buffer: ArrayBuffer;
@@ -591,50 +593,57 @@ class GooFileGenerator {
   }
 }
 
-// Example usage in a browser context
-function generateSampleGooFile(filename: string): Blob {
-  const generator = new GooFileGenerator(filename);
+export function exportGoo(result) {
+  const width = 15120;
+  const height = 6230;
 
-  // Write header
+  const w = result.bounds.max.x - result.bounds.min.x;
+  const h = result.bounds.max.y - result.bounds.min.y;
+  const generator = new GooFileGenerator("output.goo");
+
+  const bottomLayers = 5;
+  const bottomExposureTime = 30;
+  const exposureTime = 2;
+
   generator.writeHeader({
-    version: "1.0",
-    softwareInfo: "GooFileGenerator",
+    version: "3.0",
+    softwareInfo: "Slic3r",
     softwareVersion: "1.0.0",
     fileTime: new Date().toISOString(),
     printerName: "Sample Printer",
-    printerType: "LCD",
+    printerType: "Sample Printer",
     profileName: "Standard Resin",
-    antiAliasingLevel: 4,
-    greyLevel: 8,
-    blurLevel: 0,
-    xResolution: 1440,
-    yResolution: 2560,
+    antiAliasingLevel: 0,
+    greyLevel: 6,
+    blurLevel: 2,
+    xResolution: width,
+    yResolution: height,
     xMirror: false,
-    yMirror: false,
-    xSizePlatform: 68.04,
-    ySizePlatform: 120.96,
-    zSizePlatform: 150.0,
+    yMirror: true,
+    xSizePlatform: 211.68,
+    ySizePlatform: 118.37,
+    zSizePlatform: 220,
     layerThickness: 0.05,
-    exposureTime: 8.0,
+    exposureTime,
     exposureDelayMode: true,
-    turnOffTime: 1.0,
+    turnOffTime: 0,
     bottomBeforeLiftTime: 0.0,
     bottomAfterLiftTime: 0.0,
-    bottomAfterRetractTime: 0.0,
+    bottomAfterRetractTime: 0.5,
     beforeLiftTime: 0.0,
     afterLiftTime: 0.0,
-    afterRetractTime: 0.0,
-    bottomExposureTime: 60.0,
-    bottomLayers: 6,
-    totalLayers: 100,
-    bottomLiftDistance: 5.0,
-    bottomLiftSpeed: 90.0,
-    liftDistance: 5.0,
-    liftSpeed: 100.0,
-    bottomRetractDistance: 5.0,
-    bottomRetractSpeed: 100.0,
-    retractDistance: 5.0,
-    retractSpeed: 100.0,
+    afterRetractTime: 0.5,
+    bottomExposureTime,
+    bottomLayers,
+    totalLayers: result.layers.length,
+    bottomLiftDistance: 0,
+    bottomLiftSpeed: 0,
+    liftDistance: 0,
+    liftSpeed: 0,
+    bottomRetractDistance: 0,
+    bottomRetractSpeed: 0,
+    retractDistance: 0,
+    retractSpeed: 0,
     bottomSecondLiftDistance: 0.0,
     bottomSecondLiftSpeed: 0.0,
     secondLiftDistance: 0.0,
@@ -652,61 +661,161 @@ function generateSampleGooFile(filename: string): Blob {
     totalPrice: 1.16, // price units
     priceUnit: "USD",
     grayScaleLevel: true,
-    transitionLayers: 0,
+    transitionLayers: 8,
   });
 
-  // Create 3 sample layers
-  for (let i = 0; i < 3; i++) {
-    // Write layer definition
+  result.layers.forEach((layer, i) => {
+    const c1 = polygonsToGrayscale(layer.polygons, w, h, width, height);
+    const data = c1.getContext("2d").getImageData(0, 0, width, height).data;
+    const grayscaleData = new Uint8Array(width * height);
+    for (let i = 0; i < data.length; i += 4) {
+      const grayValue = data[i]; // Assuming grayscale, take the red channel
+      grayscaleData[i / 4] = grayValue;
+    }
+
     generator.writeLayerDefinition({
       pauseFlag: 0,
-      pausePositionZ: 0.0,
+      pausePositionZ: 200,
       layerPositionZ: i * 0.05,
-      layerExposureTime: i < 6 ? 60.0 : 8.0,
-      layerOffTime: 1.0,
+      layerExposureTime: i <= bottomLayers ? bottomExposureTime : exposureTime,
+      layerOffTime: 0,
       beforeLiftTime: 0.0,
       afterLiftTime: 0.0,
       afterRetractTime: 0.0,
-      liftDistance: 5.0,
-      liftSpeed: 100.0,
+      liftDistance: 0,
+      liftSpeed: 0,
       secondLiftDistance: 0.0,
       secondLiftSpeed: 0.0,
-      retractDistance: 5.0,
-      retractSpeed: 100.0,
+      retractDistance: 0,
+      retractSpeed: 0,
       secondRetractDistance: 0.0,
       secondRetractSpeed: 0.0,
       lightPWM: 255,
     });
 
-    // Create a simple 100x100 image (all white)
-    const sampleImage = new Uint8Array(100 * 100);
+    generator.writeLayerImageData(grayscaleData, width, height);
+  });
 
-    // Create a simple pattern - a circle
-    const radius = 40;
-    const centerX = 50;
-    const centerY = 50;
-
-    for (let y = 0; y < 100; y++) {
-      for (let x = 0; x < 100; x++) {
-        const distance = Math.sqrt((x - centerX) ** 2 + (y - centerY) ** 2);
-        if (distance <= radius) {
-          sampleImage[y * 100 + x] = 255; // White inside circle
-        } else {
-          sampleImage[y * 100 + x] = 0; // Black outside circle
-        }
-      }
-    }
-
-    // Write the image data
-    generator.writeLayerImageData(sampleImage, 100, 100);
-  }
-
-  // Write ending string
   generator.writeEndingString();
-
-  // Return the file as a Blob
   return generator.saveFile();
 }
+
+// Example usage in a browser context
+// function generateSampleGooFile(filename: string): Blob {
+//   const generator = new GooFileGenerator(filename);
+//
+//   // Write header
+//   generator.writeHeader({
+//     version: "1.0",
+//     softwareInfo: "GooFileGenerator",
+//     softwareVersion: "1.0.0",
+//     fileTime: new Date().toISOString(),
+//     printerName: "Sample Printer",
+//     printerType: "LCD",
+//     profileName: "Standard Resin",
+//     antiAliasingLevel: 4,
+//     greyLevel: 8,
+//     blurLevel: 0,
+//     xResolution: 1440,
+//     yResolution: 2560,
+//     xMirror: false,
+//     yMirror: false,
+//     xSizePlatform: 68.04,
+//     ySizePlatform: 120.96,
+//     zSizePlatform: 150.0,
+//     layerThickness: 0.05,
+//     exposureTime: 8.0,
+//     exposureDelayMode: true,
+//     turnOffTime: 1.0,
+//     bottomBeforeLiftTime: 0.0,
+//     bottomAfterLiftTime: 0.0,
+//     bottomAfterRetractTime: 0.0,
+//     beforeLiftTime: 0.0,
+//     afterLiftTime: 0.0,
+//     afterRetractTime: 0.0,
+//     bottomExposureTime: 60.0,
+//     bottomLayers: 6,
+//     totalLayers: 100,
+//     bottomLiftDistance: 5.0,
+//     bottomLiftSpeed: 90.0,
+//     liftDistance: 5.0,
+//     liftSpeed: 100.0,
+//     bottomRetractDistance: 5.0,
+//     bottomRetractSpeed: 100.0,
+//     retractDistance: 5.0,
+//     retractSpeed: 100.0,
+//     bottomSecondLiftDistance: 0.0,
+//     bottomSecondLiftSpeed: 0.0,
+//     secondLiftDistance: 0.0,
+//     secondLiftSpeed: 0.0,
+//     bottomSecondRetractDistance: 0.0,
+//     bottomSecondRetractSpeed: 0.0,
+//     secondRetractDistance: 0.0,
+//     secondRetractSpeed: 0.0,
+//     bottomLightPWM: 255,
+//     lightPWM: 255,
+//     advanceMode: false,
+//     printingTime: 5400, // 1.5 hours in seconds
+//     totalVolume: 10.5, // cm³
+//     totalWeight: 11.55, // g
+//     totalPrice: 1.16, // price units
+//     priceUnit: "USD",
+//     grayScaleLevel: true,
+//     transitionLayers: 0,
+//   });
+//
+//   // Create 3 sample layers
+//   for (let i = 0; i < 3; i++) {
+//     // Write layer definition
+//     generator.writeLayerDefinition({
+//       pauseFlag: 0,
+//       pausePositionZ: 0.0,
+//       layerPositionZ: i * 0.05,
+//       layerExposureTime: i < 6 ? 60.0 : 8.0,
+//       layerOffTime: 1.0,
+//       beforeLiftTime: 0.0,
+//       afterLiftTime: 0.0,
+//       afterRetractTime: 0.0,
+//       liftDistance: 5.0,
+//       liftSpeed: 100.0,
+//       secondLiftDistance: 0.0,
+//       secondLiftSpeed: 0.0,
+//       retractDistance: 5.0,
+//       retractSpeed: 100.0,
+//       secondRetractDistance: 0.0,
+//       secondRetractSpeed: 0.0,
+//       lightPWM: 255,
+//     });
+//
+//     // Create a simple 100x100 image (all white)
+//     const sampleImage = new Uint8Array(100 * 100);
+//
+//     // Create a simple pattern - a circle
+//     const radius = 40;
+//     const centerX = 50;
+//     const centerY = 50;
+//
+//     for (let y = 0; y < 100; y++) {
+//       for (let x = 0; x < 100; x++) {
+//         const distance = Math.sqrt((x - centerX) ** 2 + (y - centerY) ** 2);
+//         if (distance <= radius) {
+//           sampleImage[y * 100 + x] = 255; // White inside circle
+//         } else {
+//           sampleImage[y * 100 + x] = 0; // Black outside circle
+//         }
+//       }
+//     }
+//
+//     // Write the image data
+//     generator.writeLayerImageData(sampleImage, 100, 100);
+//   }
+//
+//   // Write ending string
+//   generator.writeEndingString();
+//
+//   // Return the file as a Blob
+//   return generator.saveFile();
+// }
 //
 // // Example of how to use this in a browser context
 // function setupGooFileGeneration() {

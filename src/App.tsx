@@ -13,6 +13,7 @@ import { slice } from "./utils/slicer";
 import { helperGroup } from "./utils/helper";
 import { setPreviewLayerIndex, usePreviewStore } from "./previewStore.ts";
 import { ImagePreview } from "./ImagePreview.tsx";
+import { exportGoo } from "./export/goo.ts";
 
 const file = "/baseplate-1x1.stl";
 
@@ -45,6 +46,14 @@ function App() {
         >
           <Button type="primary" icon={<DownloadOutlined />} onClick={slice}>
             Slice
+          </Button>
+
+          <Button
+            type="primary"
+            icon={<DownloadOutlined />}
+            onClick={() => exportGoo(result)}
+          >
+            Export GOO
           </Button>
 
           <input
