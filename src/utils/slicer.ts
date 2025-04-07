@@ -15,7 +15,7 @@ import { SimplePolygon } from "manifold-3d";
 const loader = new STLLoader();
 
 export const slice = async (file: string) => {
-  const layerHeight = 1;
+  const layerHeight = 30;
   // const layerHeight = 20;
 
   const layers = [];

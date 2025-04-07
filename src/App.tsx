@@ -16,8 +16,8 @@ import { ImagePreview } from "./ImagePreview.tsx";
 import { exportGoo } from "./export/goo.ts";
 import { X_SIZE, Y_SIZE } from "./export/constants.ts";
 
-// const file = "/baseplate-1x1.stl";
-const file = "/cube.stl";
+const file = "/baseplate-1x1.stl";
+// const file = "/cube.stl";
 
 const result = await slice(file);
 
