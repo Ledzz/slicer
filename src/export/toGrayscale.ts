@@ -1,5 +1,6 @@
 import { SimplePolygon } from "manifold-3d";
 
+// TODO: rewrite to WebGPU
 export function polygonsToGrayscale(
   context: CanvasRenderingContext2D,
   polygons: SimplePolygon[],
