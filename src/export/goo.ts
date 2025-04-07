@@ -387,8 +387,7 @@ class GooFileGenerator {
   public writeEndingString(): void {
     // The ending string as specified
     const endString = new Uint8Array([
-      0x0d, 0x0d, 0x0d, 0x0d, 0xd0, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-      0x00, 0x0d, 0x44, 0x4c, 0x50, 0x00,
+      0x00, 0x00, 0x00, 0x07, 0x00, 0x00, 0x00, 0x44, 0x4c, 0x50, 0x00,
     ]);
     this.writeUint8Array(endString);
   }
@@ -475,24 +474,27 @@ class GooFileGenerator {
       } else if (pixel === 255) {
         // Case: all 0xff pixels (Byte0[7:6] = 11)
         this.encodeFFPixelRun(result, count);
-      } else if (i > 0) {
-        const diff = pixel - prevPixel;
-        if (diff > 0 && diff <= 15) {
-          // Positive diff (Byte0[7:6] = 10, Byte0[5:4] = 00 or 01)
-          this.encodePositiveDiff(result, diff, count);
-        } else if (diff < 0 && diff >= -15) {
-          // Negative diff (Byte0[7:6] = 10, Byte0[5:4] = 10 or 11)
-          this.encodeNegativeDiff(result, Math.abs(diff), count);
-        } else {
-          // Gray value (Byte0[7:6] = 01)
-          this.encodeGrayValue(result, pixel, count);
-        }
+        // } else if (i > 0) {
+        // const diff = pixel - prevPixel;
+        // if (diff > 0 && diff <= 15) {
+        //   // Positive diff (Byte0[7:6] = 10, Byte0[5:4] = 00 or 01)
+        //   this.encodePositiveDiff(result, diff, count);
+        // } else if (diff < 0 && diff >= -15) {
+        //   // Negative diff (Byte0[7:6] = 10, Byte0[5:4] = 10 or 11)
+        //   this.encodeNegativeDiff(result, Math.abs(diff), count);
+        // } else {
+        // Gray value (Byte0[7:6] = 01)
+        // this.encodeGrayValue(result, pixel, count);
+        // }
       } else {
         // First pixel, always use gray value encoding
+        if (count >= Math.pow(2, 28) - 1) {
+          throw new Error("too long run");
+        }
         this.encodeGrayValue(result, pixel, count);
       }
 
-      prevPixel = pixel;
+      // prevPixel = pixel;
       i += count;
     }
 
@@ -510,7 +512,7 @@ class GooFileGenerator {
    * Encode a run of 0x0 pixels (Byte0[7:6] = 00)
    */
   private encodeZeroPixelRun(result: number[], count: number): void {
-    if (count <= 15) {
+    if (count <= 0xff) {
       // 4-bit run-length (Byte0[5:4] = 00)
       result.push(0b00000000 | count);
     } else if (count <= 0xfff) {
@@ -520,14 +522,14 @@ class GooFileGenerator {
     } else if (count <= 0xfffff) {
       // 20-bit run-length (Byte0[5:4] = 10)
       result.push(0b00100000 | (count & 0x0f));
-      result.push((count >> 4) & 0xff);
       result.push((count >> 12) & 0xff);
+      result.push((count >> 4) & 0xff);
     } else {
       // 28-bit run-length (Byte0[5:4] = 11)
       result.push(0b00110000 | (count & 0x0f));
-      result.push((count >> 4) & 0xff);
-      result.push((count >> 12) & 0xff);
       result.push((count >> 20) & 0xff);
+      result.push((count >> 12) & 0xff);
+      result.push((count >> 4) & 0xff);
     }
   }
 
@@ -539,7 +541,7 @@ class GooFileGenerator {
     value: number,
     count: number,
   ): void {
-    if (count <= 15) {
+    if (count <= 0xf) {
       // 4-bit run-length (Byte0[5:4] = 00)
       result.push(0b01000000 | count);
     } else if (count <= 0xfff) {
@@ -549,14 +551,14 @@ class GooFileGenerator {
     } else if (count <= 0xfffff) {
       // 20-bit run-length (Byte0[5:4] = 10)
       result.push(0b01100000 | (count & 0x0f));
-      result.push((count >> 4) & 0xff);
       result.push((count >> 12) & 0xff);
+      result.push((count >> 4) & 0xff);
     } else {
       // 28-bit run-length (Byte0[5:4] = 11)
       result.push(0b01110000 | (count & 0x0f));
-      result.push((count >> 4) & 0xff);
-      result.push((count >> 12) & 0xff);
       result.push((count >> 20) & 0xff);
+      result.push((count >> 12) & 0xff);
+      result.push((count >> 4) & 0xff);
     }
 
     // Add the gray value after byte0
@@ -613,14 +615,14 @@ class GooFileGenerator {
     } else if (count <= 0xfffff) {
       // 20-bit run-length (Byte0[5:4] = 10)
       result.push(0b11100000 | (count & 0x0f));
-      result.push((count >> 4) & 0xff);
       result.push((count >> 12) & 0xff);
+      result.push((count >> 4) & 0xff);
     } else {
       // 28-bit run-length (Byte0[5:4] = 11)
       result.push(0b11110000 | (count & 0x0f));
-      result.push((count >> 4) & 0xff);
-      result.push((count >> 12) & 0xff);
       result.push((count >> 20) & 0xff);
+      result.push((count >> 12) & 0xff);
+      result.push((count >> 4) & 0xff);
     }
   }
 
