@@ -458,6 +458,8 @@ class GooFileGenerator {
 
     let i = 0;
     let prevPixel = 0;
+    let run = 0;
+    let totalCount = 0;
 
     while (i < imageData.length) {
       const pixel = imageData[i];
@@ -467,6 +469,15 @@ class GooFileGenerator {
       while (i + count < imageData.length && imageData[i + count] === pixel) {
         count++;
       }
+      let before = [];
+      totalCount += count;
+
+      const counts = [39197539 - 2, 39197539 - 1, 39197539];
+
+      if (counts.includes(totalCount)) {
+        console.log("run", run, count, pixel);
+        before = [...result];
+      }
 
       if (pixel === 0) {
         // Case: all 0x0 pixels (Byte0[7:6] = 00)
@@ -474,7 +485,8 @@ class GooFileGenerator {
       } else if (pixel === 255) {
         // Case: all 0xff pixels (Byte0[7:6] = 11)
         this.encodeFFPixelRun(result, count);
-      } else if (i > 0) {
+      }
+      if (i > 0) {
         const diff = pixel - prevPixel;
         if (diff > 0 && diff <= 15) {
           // Positive diff (Byte0[7:6] = 10, Byte0[5:4] = 00 or 01)
@@ -494,8 +506,28 @@ class GooFileGenerator {
         this.encodeGrayValue(result, pixel, count);
       }
 
-      // prevPixel = pixel;
+      if (counts.includes(totalCount)) {
+        const bytes = result.slice(before.length);
+
+        const hex = bytes.map((x) => x.toString(16).padStart(2, "0"));
+        const bin = bytes.map((x) => x.toString(2).padStart(8, "0"));
+
+        const length = bin[0].substring(2, 4);
+
+        if (length === "00") {
+          console.log("4-bit run-length", hex, bin);
+        } else if (length === "01") {
+          console.log("12-bit run-length", hex, bin);
+        } else if (length === "10") {
+          console.log("20-bit run-length", hex, bin);
+        } else if (length === "11") {
+          console.log("28-bit run-length", hex, bin);
+        }
+      }
+
+      prevPixel = pixel;
       i += count;
+      run++;
     }
 
     // Calculate checksum (8-bit sum of all bytes except the magic number)
@@ -544,25 +576,30 @@ class GooFileGenerator {
     if (count <= 0xf) {
       // 4-bit run-length (Byte0[5:4] = 00)
       result.push(0b01000000 | count);
+      // Add the gray value after byte0
+      result.push(value);
     } else if (count <= 0xfff) {
       // 12-bit run-length (Byte0[5:4] = 01)
       result.push(0b01010000 | (count & 0x0f));
+      // Add the gray value after byte0
+      result.push(value);
       result.push((count >> 4) & 0xff);
     } else if (count <= 0xfffff) {
       // 20-bit run-length (Byte0[5:4] = 10)
       result.push(0b01100000 | (count & 0x0f));
+      // Add the gray value after byte0
+      result.push(value);
       result.push((count >> 12) & 0xff);
       result.push((count >> 4) & 0xff);
     } else {
       // 28-bit run-length (Byte0[5:4] = 11)
       result.push(0b01110000 | (count & 0x0f));
+      // Add the gray value after byte0
+      result.push(value);
       result.push((count >> 20) & 0xff);
       result.push((count >> 12) & 0xff);
       result.push((count >> 4) & 0xff);
     }
-
-    // Add the gray value after byte0
-    result.push(value);
   }
 
   /**
@@ -605,7 +642,7 @@ class GooFileGenerator {
    * Encode a run of 0xFF pixels (Byte0[7:6] = 11)
    */
   private encodeFFPixelRun(result: number[], count: number): void {
-    if (count <= 15) {
+    if (count <= 0xf) {
       // 4-bit run-length (Byte0[5:4] = 00)
       result.push(0b11000000 | count);
     } else if (count <= 0xfff) {
@@ -830,7 +867,6 @@ export async function exportGoo(result) {
       grayscaleData[i / 4] = imageData.data[i];
     }
     generator.writeLayerImageData(grayscaleData, width, height);
-    console.log(`Layer ${++index} of ${totalLayers} processed.`);
   });
 
   generator.writeEndingString();
