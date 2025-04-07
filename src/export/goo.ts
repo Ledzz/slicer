@@ -474,18 +474,18 @@ class GooFileGenerator {
       } else if (pixel === 255) {
         // Case: all 0xff pixels (Byte0[7:6] = 11)
         this.encodeFFPixelRun(result, count);
-        // } else if (i > 0) {
-        // const diff = pixel - prevPixel;
-        // if (diff > 0 && diff <= 15) {
-        //   // Positive diff (Byte0[7:6] = 10, Byte0[5:4] = 00 or 01)
-        //   this.encodePositiveDiff(result, diff, count);
-        // } else if (diff < 0 && diff >= -15) {
-        //   // Negative diff (Byte0[7:6] = 10, Byte0[5:4] = 10 or 11)
-        //   this.encodeNegativeDiff(result, Math.abs(diff), count);
-        // } else {
-        // Gray value (Byte0[7:6] = 01)
-        // this.encodeGrayValue(result, pixel, count);
-        // }
+      } else if (i > 0) {
+        const diff = pixel - prevPixel;
+        if (diff > 0 && diff <= 15) {
+          // Positive diff (Byte0[7:6] = 10, Byte0[5:4] = 00 or 01)
+          this.encodePositiveDiff(result, diff, count);
+        } else if (diff < 0 && diff >= -15) {
+          // Negative diff (Byte0[7:6] = 10, Byte0[5:4] = 10 or 11)
+          this.encodeNegativeDiff(result, Math.abs(diff), count);
+        } else {
+          // Gray value (Byte0[7:6] = 01)
+          this.encodeGrayValue(result, pixel, count);
+        }
       } else {
         // First pixel, always use gray value encoding
         if (count >= Math.pow(2, 28) - 1) {
@@ -723,8 +723,8 @@ export async function exportGoo(result) {
   const width = 15120;
   const height = 6230;
 
-  const w = result.bounds.max.x - result.bounds.min.x;
-  const h = result.bounds.max.y - result.bounds.min.y;
+  // const w = result.bounds.max.x - result.bounds.min.x;
+  // const h = result.bounds.max.y - result.bounds.min.y;
   const generator = new GooFileGenerator("output.goo");
 
   const bottomLayers = 5;
@@ -823,7 +823,7 @@ export async function exportGoo(result) {
       lightPWM: 255,
     });
 
-    polygonsToGrayscale(context, layer.polygons, w, h, width, height);
+    polygonsToGrayscale(context, layer.polygons, X_SIZE, Y_SIZE, width, height);
     const imageData = context.getImageData(0, 0, width, height);
     for (let i = 0; i < imageData.data.length; i += 4) {
       // Assuming grayscale, take the red channel
