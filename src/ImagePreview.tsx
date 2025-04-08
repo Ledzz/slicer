@@ -4,8 +4,8 @@ import { X_SIZE, Y_SIZE } from "./export/constants.ts";
 
 export const ImagePreview: FC = ({ layer, result }) => {
   const [canvas, setCanvas] = useState<HTMLCanvasElement | null>(null);
-  const width = 128;
-  const height = 128;
+  const width = 15120 / 50;
+  const height = 6230 / 50;
   useEffect(() => {
     if (canvas) {
       const w = X_SIZE;
@@ -16,7 +16,7 @@ export const ImagePreview: FC = ({ layer, result }) => {
       polygonsToGrayscale(context, layer.polygons, w, h, width, height);
       // ctx.drawImage(c1, 0, 0);
     }
-  }, [canvas, layer.polygons, result]);
+  }, [canvas, height, layer.polygons, result, width]);
 
   return (
     <canvas
