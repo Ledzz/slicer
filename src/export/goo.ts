@@ -480,29 +480,19 @@ class GooFileGenerator {
       }
 
       if (pixel === 0) {
-        // Case: all 0x0 pixels (Byte0[7:6] = 00)
         this.encodeZeroPixelRun(result, count);
       } else if (pixel === 255) {
-        // Case: all 0xff pixels (Byte0[7:6] = 11)
         this.encodeFFPixelRun(result, count);
-      }
-      if (i > 0) {
+      } else if (i > 0) {
         const diff = pixel - prevPixel;
         if (diff > 0 && diff <= 15) {
-          // Positive diff (Byte0[7:6] = 10, Byte0[5:4] = 00 or 01)
           this.encodePositiveDiff(result, diff, count);
         } else if (diff < 0 && diff >= -15) {
-          // Negative diff (Byte0[7:6] = 10, Byte0[5:4] = 10 or 11)
           this.encodeNegativeDiff(result, Math.abs(diff), count);
         } else {
-          // Gray value (Byte0[7:6] = 01)
           this.encodeGrayValue(result, pixel, count);
         }
       } else {
-        // First pixel, always use gray value encoding
-        if (count >= Math.pow(2, 28) - 1) {
-          throw new Error("too long run");
-        }
         this.encodeGrayValue(result, pixel, count);
       }
 
