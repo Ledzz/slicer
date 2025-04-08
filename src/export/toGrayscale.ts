@@ -1,5 +1,5 @@
 import { SimplePolygon, Vec3 } from "manifold-3d";
-import earcut from "earcut";
+import earcut, { flatten } from "earcut";
 
 export async function polygonsToGrayscale(
   canvas: HTMLCanvasElement,
@@ -19,31 +19,32 @@ export async function polygonsToGrayscale(
   const height = canvas.height;
 
   // 1. Prepare Vertex Data
-  const vertices: number[] = [];
-  const colors: number[] = []; // Per vertex color (can be optimized)
-  const indices: number[] = [];
+  const allVertices: number[] = []; // Initialize outside the loops
+  const allColors: number[] = []; // Initialize outside the loops
+  const allIndices: number[] = []; // Initialize outside the loops
   let vertexOffset = 0;
 
   for (const layer of layers) {
-    for (const polygon of layer) {
-      const color = determineWinding(polygon) ? polygonColor : backgroundColor;
-      // Prepare data for triangulation (flattened vertices)
-      const flatVertices = polygon.flat();
+    const { vertices: flatVertices, holes, dimensions } = flatten(layer);
 
-      // Use earcut to get the triangle indices
-      const polygonIndices = earcut(flatVertices);
-      // Add vertices and colors for each vertex of the triangles
-      for (let i = 0; i < polygonIndices.length; i++) {
-        const vertexIndexInPolygon = polygonIndices[i];
-        const [x, y] = polygon[vertexIndexInPolygon];
-        const scaledX = (x / originalWidth + 0.5) * width;
-        const scaledY = (y / originalHeight + 0.5) * height;
-        vertices.push(scaledX, scaledY);
-        colors.push(...color);
-        indices.push(vertexOffset + i); // Use the index of the newly added vertex
-      }
-      vertexOffset += polygonIndices.length; // Update the offset for the next polygon
+    // Triangulate the flattened vertices
+    const polygonIndices = earcut(flatVertices, holes, dimensions);
+
+    const color = polygonColor; // Assuming a single polygonColor for the entire layer for now
+    const normalizedColor = [color / 255, color / 255, color / 255];
+
+    // Add vertices and colors for each vertex of the triangles
+    for (let i = 0; i < polygonIndices.length; i++) {
+      const vertexIndexInFlat = polygonIndices[i];
+      const x = flatVertices[vertexIndexInFlat * dimensions];
+      const y = flatVertices[vertexIndexInFlat * dimensions + 1];
+      const scaledX = (x / originalWidth + 0.5) * width;
+      const scaledY = (y / originalHeight + 0.5) * height;
+      allVertices.push(scaledX, scaledY); // Push to the correct array
+      allColors.push(...normalizedColor); // Use the determined color
+      allIndices.push(vertexOffset + i);
     }
+    vertexOffset += polygonIndices.length;
   }
 
   // 2. Vertex Shader Source
@@ -85,17 +86,17 @@ export async function polygonsToGrayscale(
   // 4. Set up Buffers
   const positionBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(allVertices), gl.STATIC_DRAW);
 
   const colorBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(colors), gl.STATIC_DRAW);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(allColors), gl.STATIC_DRAW);
 
   const indexBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
   gl.bufferData(
     gl.ELEMENT_ARRAY_BUFFER,
-    new Uint16Array(indices),
+    new Uint16Array(allIndices),
     gl.STATIC_DRAW,
   );
 
@@ -119,15 +120,10 @@ export async function polygonsToGrayscale(
 
   // 7. Rendering
   gl.viewport(0, 0, width, height);
-  gl.clearColor(
-    backgroundColor / 255,
-    backgroundColor / 255,
-    backgroundColor / 255,
-    1,
-  );
+  gl.clearColor(...backgroundColor, 1);
   gl.clear(gl.COLOR_BUFFER_BIT);
 
-  gl.drawElements(gl.TRIANGLES, indices.length, gl.UNSIGNED_SHORT, 0);
+  gl.drawElements(gl.TRIANGLES, allIndices.length, gl.UNSIGNED_SHORT, 0);
 
   // Clean up (optional)
   // gl.deleteBuffer(positionBuffer);
