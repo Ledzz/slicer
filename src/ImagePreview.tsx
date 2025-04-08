@@ -12,8 +12,10 @@ export const ImagePreview: FC = ({ layer, result }) => {
       const h = Y_SIZE;
       canvas.width = width;
       canvas.height = height;
-      const context = canvas.getContext("2d")!;
-      polygonsToGrayscale(context, layer.polygons, w, h, width, height);
+      // const context = canvas.getContext("2d")!;
+      // const allPolygons = result.layers.map((l) => l.polygons);
+      const allPolygons = [layer.polygons];
+      polygonsToGrayscale(canvas, allPolygons, w, h);
     }
   }, [canvas, height, layer.polygons, result, width]);
 
