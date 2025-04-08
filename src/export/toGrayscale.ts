@@ -134,29 +134,6 @@ export async function polygonsToGrayscale(
   // gl.deleteShader(fragmentShader);
 }
 
-// Reuse the existing determineWinding function
-function determineWinding(polygon) {
-  let signedArea = 0;
-
-  // Need at least 3 points to form a polygon
-  if (polygon.length < 3) {
-    return false;
-  }
-
-  // Calculate the signed area using the shoelace formula
-  for (let i = 0; i < polygon.length; i++) {
-    const [x1, y1] = polygon[i];
-    const [x2, y2] = polygon[(i + 1) % polygon.length];
-
-    signedArea += x1 * y2 - x2 * y1;
-  }
-
-  // Divide by 2 to get the actual area
-  signedArea /= 2;
-
-  return signedArea > 0;
-}
-
 function createShader(
   gl: WebGLRenderingContext,
   type: number,
