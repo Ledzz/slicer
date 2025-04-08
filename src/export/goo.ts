@@ -459,7 +459,8 @@ class GooFileGenerator {
     let i = 0;
     let prevPixel = 0;
     let run = 0;
-    let totalCount = 0;
+    // let totalCount = 0;
+    console.clear();
 
     while (i < imageData.length) {
       const pixel = imageData[i];
@@ -469,51 +470,62 @@ class GooFileGenerator {
       while (i + count < imageData.length && imageData[i + count] === pixel) {
         count++;
       }
-      let before = [];
-      totalCount += count;
+      // let before = [];
+      // totalCount += count;
 
-      const counts = [39197539 - 2, 39197539 - 1, 39197539];
+      // const counts = [39197539 - 2, 39197539 - 1, 39197539];
 
-      if (counts.includes(totalCount)) {
-        console.log("run", run, count, pixel);
-        before = [...result];
-      }
+      // if (counts.includes(totalCount)) {
+      //   console.table({
+      //     run,
+      //     count,
+      //     totalCount,
+      //     address: (this.totalLength + result.length).toString(16),
+      //     pixel,
+      //   });
+      //   before = [...result];
+      //   window.debug = true;
+      // }
 
-      if (pixel === 0) {
-        this.encodeZeroPixelRun(result, count);
-      } else if (pixel === 255) {
-        this.encodeFFPixelRun(result, count);
-      } else if (i > 0) {
-        const diff = pixel - prevPixel;
-        if (diff > 0 && diff <= 15) {
-          this.encodePositiveDiff(result, diff, count);
-        } else if (diff < 0 && diff >= -15) {
-          this.encodeNegativeDiff(result, Math.abs(diff), count);
-        } else {
-          this.encodeGrayValue(result, pixel, count);
-        }
-      } else {
-        this.encodeGrayValue(result, pixel, count);
-      }
+      this.encodeRun(result, count, pixel);
 
-      if (counts.includes(totalCount)) {
-        const bytes = result.slice(before.length);
+      // if (pixel === 0) {
+      //   this.encodeZeroPixelRun(result, count);
+      // } else if (pixel === 255) {
+      //   this.encodeFFPixelRun(result, count);
+      // } else if (i > 0 && compressGreyDiff) {
+      //   const diff = pixel - prevPixel;
+      //   if (diff > 0 && diff <= 15) {
+      //     this.encodePositiveDiff(result, diff, count);
+      //   } else if (diff < 0 && diff >= -15) {
+      //     this.encodeNegativeDiff(result, Math.abs(diff), count);
+      //   } else {
+      //     this.encodeGrayValue(result, pixel, count);
+      //   }
+      // } else {
+      //   this.encodeGrayValue(result, pixel, count);
+      // }
 
-        const hex = bytes.map((x) => x.toString(16).padStart(2, "0"));
-        const bin = bytes.map((x) => x.toString(2).padStart(8, "0"));
+      // window.debug = false;
 
-        const length = bin[0].substring(2, 4);
-
-        if (length === "00") {
-          console.log("4-bit run-length", hex, bin);
-        } else if (length === "01") {
-          console.log("12-bit run-length", hex, bin);
-        } else if (length === "10") {
-          console.log("20-bit run-length", hex, bin);
-        } else if (length === "11") {
-          console.log("28-bit run-length", hex, bin);
-        }
-      }
+      // if (counts.includes(totalCount)) {
+      //   const bytes = result.slice(before.length);
+      //
+      //   const hex = bytes.map((x) => x.toString(16).padStart(2, "0"));
+      //   const bin = bytes.map((x) => x.toString(2).padStart(8, "0"));
+      //
+      //   const length = bin[0].substring(2, 4);
+      //
+      //   if (length === "00") {
+      //     console.log("4-bit run-length", hex, bin);
+      //   } else if (length === "01") {
+      //     console.log("12-bit run-length", hex, bin);
+      //   } else if (length === "10") {
+      //     console.log("20-bit run-length", hex, bin);
+      //   } else if (length === "11") {
+      //     console.log("28-bit run-length", hex, bin);
+      //   }
+      // }
 
       prevPixel = pixel;
       i += count;
@@ -527,7 +539,50 @@ class GooFileGenerator {
     }
     result.push(255 - checksum);
 
+    if (result.some((v) => v > 0xff)) {
+      throw new Error("Encoded data exceeds 8-bit value");
+    }
+
     return new Uint8Array(result);
+  }
+
+  private encodeRun(result: number[], count: number, color: number) {
+    // without compression for now
+    result.push(0);
+    const index = result.length - 1;
+
+    if (color === 255) {
+      result[index] |= 0b11 << 6;
+    } else if (color > 0) {
+      result[index] |= 0b01 << 6;
+      result.push(color);
+    }
+
+    result[index] |= count & 0xf;
+
+    if (color <= 0xf) {
+      return;
+    }
+
+    if (color <= 0xfff) {
+      result[index] |= 0b0001 << 4;
+      result.push((count >> 4) & 0xff);
+      return;
+    }
+
+    if (color <= 0xfff) {
+      result[index] |= 0b0001 << 4;
+      result.push((count >> 12) & 0xff);
+      result.push((count >> 4) & 0xff);
+      return;
+    }
+    if (color <= 0xfffff) {
+      result[index] |= 0b0001 << 4;
+      result.push((count >> 20) & 0xff);
+      result.push((count >> 12) & 0xff);
+      result.push((count >> 4) & 0xff);
+      return;
+    }
   }
 
   /**
@@ -563,6 +618,9 @@ class GooFileGenerator {
     value: number,
     count: number,
   ): void {
+    if (window.debug) {
+      console.log("encodeGrayValue", count);
+    }
     if (count <= 0xf) {
       // 4-bit run-length (Byte0[5:4] = 00)
       result.push(0b01000000 | count);
