@@ -14,7 +14,6 @@ export const ImagePreview: FC = ({ layer, result }) => {
       canvas.height = height;
       const context = canvas.getContext("2d")!;
       polygonsToGrayscale(context, layer.polygons, w, h, width, height);
-      // ctx.drawImage(c1, 0, 0);
     }
   }, [canvas, height, layer.polygons, result, width]);
 
@@ -27,37 +26,3 @@ export const ImagePreview: FC = ({ layer, result }) => {
     />
   );
 };
-
-export function displayGrayscaleImage(
-  imageData: Uint8Array,
-  canvas: HTMLCanvasElement,
-  width: number,
-  height: number,
-) {
-  canvas.width = width;
-  canvas.height = height;
-
-  // Get the canvas context
-  const ctx = canvas.getContext("2d");
-  if (!ctx) {
-    throw new Error("Could not get canvas context");
-  }
-
-  // Create an ImageData object
-  const rgbaImageData = ctx.createImageData(width, height);
-  const rgbaData = rgbaImageData.data;
-
-  // Convert grayscale data to RGBA
-  for (let i = 0; i < imageData.length; i++) {
-    const grayValue = imageData[i];
-    // Set RGB channels to the same value (grayscale)
-    const dataIndex = i * 4;
-    rgbaData[dataIndex] = grayValue; // R
-    rgbaData[dataIndex + 1] = grayValue; // G
-    rgbaData[dataIndex + 2] = grayValue; // B
-    rgbaData[dataIndex + 3] = 255; // A (fully opaque)
-  }
-
-  // Put the image data onto the canvas
-  ctx.putImageData(rgbaImageData, 0, 0);
-}
