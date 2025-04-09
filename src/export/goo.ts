@@ -1,8 +1,8 @@
 // goo-file-generator.ts
 // Browser-compatible version using ArrayBuffer and DataView instead of Node.js Buffer
 
-import { polygonsToGrayscale } from "./toGrayscale.ts";
 import { X_SIZE, Y_SIZE } from "./constants.ts";
+import { polygonsToGrayscale } from "./toGrayscale.ts";
 
 class GooFileGenerator {
   // Use array of chunks for flexible size
@@ -619,8 +619,6 @@ export async function exportGoo(result) {
   const width = 15120;
   const height = 6230;
 
-  // const w = result.bounds.max.x - result.bounds.min.x;
-  // const h = result.bounds.max.y - result.bounds.min.y;
   const generator = new GooFileGenerator("output.goo");
 
   const bottomLayers = 5;
@@ -687,23 +685,27 @@ export async function exportGoo(result) {
     transitionLayers: 8,
   });
 
-  let index = 0;
   const canvas = new OffscreenCanvas(width, height);
 
   canvas.width = width;
   canvas.height = height;
-  const context = canvas.getContext("2d", {
-    willReadFrequently: true,
-  })!;
 
-  const grayscaleData = new Uint8Array(width * height);
+  console.time("render");
+  const imageData = polygonsToGrayscale(
+    canvas,
+    result.layers.map((l) => l.polygons),
+    X_SIZE,
+    Y_SIZE,
+  );
+  console.timeEnd("render");
 
-  result.layers.forEach((layer, i) => {
+  result.layers.forEach((layer, layerIndex) => {
     generator.writeLayerDefinition({
       pauseFlag: 0,
       pausePositionZ: 200,
-      layerPositionZ: i * 0.05,
-      layerExposureTime: i <= bottomLayers ? bottomExposureTime : exposureTime,
+      layerPositionZ: layerIndex * 0.05,
+      layerExposureTime:
+        layerIndex <= bottomLayers ? bottomExposureTime : exposureTime,
       layerOffTime: 0,
       beforeLiftTime: 0.0,
       afterLiftTime: 0.0,
@@ -719,11 +721,9 @@ export async function exportGoo(result) {
       lightPWM: 255,
     });
 
-    polygonsToGrayscale(context, layer.polygons, X_SIZE, Y_SIZE, width, height);
-    const imageData = context.getImageData(0, 0, width, height);
-    for (let i = 0; i < imageData.data.length; i += 4) {
-      // Assuming grayscale, take the red channel
-      grayscaleData[i / 4] = imageData.data[i];
+    const grayscaleData = new Uint8Array(width * height);
+    for (let i = 0; i < imageData[layerIndex].data.length; i += 4) {
+      grayscaleData[i / 4] = imageData[layerIndex].data[i];
     }
     generator.writeLayerImageData(grayscaleData, width, height);
   });
