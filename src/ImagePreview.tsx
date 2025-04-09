@@ -1,23 +1,29 @@
 import { FC, useEffect, useState } from "react";
 import { polygonsToGrayscale } from "./export/toGrayscale.ts";
 import { X_SIZE, Y_SIZE } from "./export/constants.ts";
+import { usePreviewStore } from "./previewStore.ts";
 
-export const ImagePreview: FC = ({ layer, result }) => {
-  const [canvas, setCanvas] = useState<HTMLCanvasElement | null>(null);
-  const width = 15120 / 50;
-  const height = 6230 / 50;
+export const ImagePreview: FC = ({ result }) => {
+  const [c, setCanvas] = useState<HTMLCanvasElement | null>(null);
+  const width = Math.floor(15120 / 50);
+  const height = Math.floor(6230 / 50);
+  const previewLayerIndex = usePreviewStore((s) => s.previewLayerIndex);
+
+  const [res, setRes] = useState<ImageData[]>([]);
+
   useEffect(() => {
-    if (canvas) {
-      const w = X_SIZE;
-      const h = Y_SIZE;
-      canvas.width = width;
-      canvas.height = height;
-      // const context = canvas.getContext("2d")!;
-      // const allPolygons = result.layers.map((l) => l.polygons);
-      const allPolygons = [layer.polygons];
-      polygonsToGrayscale(canvas, allPolygons, w, h);
-    }
-  }, [canvas, height, layer.polygons, result, width]);
+    const canvas = new OffscreenCanvas(width, height);
+    const allPolygons = result.layers.map((l) => l.polygons);
+    setRes(polygonsToGrayscale(canvas, allPolygons, X_SIZE, Y_SIZE));
+  }, [c, height, result.layers, width]);
+
+  useEffect(() => {
+    if (!c || !res.length) return;
+    const context = c.getContext("2d")!;
+    c.width = width;
+    c.height = height;
+    context.putImageData(res[previewLayerIndex], 0, 0);
+  }, [c, height, previewLayerIndex, res, width]);
 
   return (
     <canvas

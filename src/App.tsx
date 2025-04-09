@@ -67,10 +67,7 @@ function App() {
             }}
           />
 
-          <ImagePreview
-            result={result}
-            layer={result.layers[previewLayerIndex]}
-          />
+          <ImagePreview result={result} />
         </Sider>
         <Content>
           <Canvas
