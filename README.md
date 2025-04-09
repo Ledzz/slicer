@@ -3,7 +3,7 @@ Web-based slicer for SLA printers
 
 ## TODO
 
-[ ] - Run slicing in worker
+[x] - Run slicing in worker
 [ ] - Support generation
 [ ] - Display slicing progress
 [ ] - Check that slicing works correctly on a real model

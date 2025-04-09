@@ -4,7 +4,6 @@
 import { X_SIZE, Y_SIZE } from "./constants.ts";
 import { api } from "./workerApi.ts";
 import { proxy } from "comlink";
-import { reportProgress } from "./reportProgress.ts";
 
 class GooFileGenerator {
   // Use array of chunks for flexible size
@@ -695,38 +694,39 @@ export async function exportGoo(result) {
     result.layers.map((l) => l.polygons),
     X_SIZE,
     Y_SIZE,
-    proxy(reportProgress),
+    proxy((layerIndex: number, total: number, data: Uint8ClampedArray) => {
+      console.log(`Progress: ${((layerIndex / total) * 100).toFixed(2)}%`);
+      generator.writeLayerDefinition({
+        pauseFlag: 0,
+        pausePositionZ: 200,
+        layerPositionZ: layerIndex * 0.05,
+        layerExposureTime:
+          layerIndex <= bottomLayers ? bottomExposureTime : exposureTime,
+        layerOffTime: 0,
+        beforeLiftTime: 0.0,
+        afterLiftTime: 0.0,
+        afterRetractTime: 0.0,
+        liftDistance: 0,
+        liftSpeed: 0,
+        secondLiftDistance: 0.0,
+        secondLiftSpeed: 0.0,
+        retractDistance: 0,
+        retractSpeed: 0,
+        secondRetractDistance: 0.0,
+        secondRetractSpeed: 0.0,
+        lightPWM: 255,
+      });
+
+      const grayscaleData = new Uint8Array(width * height);
+      for (let i = 0; i < data.length; i += 4) {
+        grayscaleData[i / 4] = data[i];
+      }
+      generator.writeLayerImageData(grayscaleData, width, height);
+    }),
   );
   console.timeEnd("render");
 
-  result.layers.forEach((layer, layerIndex) => {
-    generator.writeLayerDefinition({
-      pauseFlag: 0,
-      pausePositionZ: 200,
-      layerPositionZ: layerIndex * 0.05,
-      layerExposureTime:
-        layerIndex <= bottomLayers ? bottomExposureTime : exposureTime,
-      layerOffTime: 0,
-      beforeLiftTime: 0.0,
-      afterLiftTime: 0.0,
-      afterRetractTime: 0.0,
-      liftDistance: 0,
-      liftSpeed: 0,
-      secondLiftDistance: 0.0,
-      secondLiftSpeed: 0.0,
-      retractDistance: 0,
-      retractSpeed: 0,
-      secondRetractDistance: 0.0,
-      secondRetractSpeed: 0.0,
-      lightPWM: 255,
-    });
-
-    const grayscaleData = new Uint8Array(width * height);
-    for (let i = 0; i < imageData[layerIndex].data.length; i += 4) {
-      grayscaleData[i / 4] = imageData[layerIndex].data[i];
-    }
-    generator.writeLayerImageData(grayscaleData, width, height);
-  });
+  result.layers.forEach((layer, layerIndex) => {});
 
   generator.writeEndingString();
   return generator.saveFile();

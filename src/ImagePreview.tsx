@@ -2,7 +2,6 @@ import { FC, useEffect, useState } from "react";
 import { X_SIZE, Y_SIZE } from "./export/constants.ts";
 import { usePreviewStore } from "./previewStore.ts";
 import { api } from "./export/workerApi.ts";
-import { reportProgress } from "./export/reportProgress.ts";
 import { proxy } from "comlink";
 
 export const ImagePreview: FC = ({ result }) => {
@@ -16,13 +15,18 @@ export const ImagePreview: FC = ({ result }) => {
   useEffect(() => {
     (async function () {
       const allPolygons = result.layers.map((l) => l.polygons);
-      const r = await api.polygonsToGrayscaleWithCanvas(
+      const r = [];
+      await api.polygonsToGrayscaleWithCanvas(
         width,
         height,
         allPolygons,
         X_SIZE,
         Y_SIZE,
-        proxy(reportProgress),
+        proxy((layerIndex: number, total: number, data: Uint8ClampedArray) => {
+          console.log(`Progress: ${((layerIndex / total) * 100).toFixed(2)}%`);
+          const imageData = new ImageData(data, width, height);
+          r.push(imageData);
+        }),
       );
       setRes(r);
     })();

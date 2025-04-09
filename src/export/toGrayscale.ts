@@ -6,10 +6,14 @@ export function polygonsToGrayscale(
   layers: SimplePolygon[][], // Array of layers
   originalWidth: number,
   originalHeight: number,
-  progressCallback: (current: number, total: number) => void,
+  progressCallback: (
+    current: number,
+    total: number,
+    data: Uint8ClampedArray,
+  ) => void,
   backgroundColor: Vec3 = [0, 0, 0], // Array of background colors for each layer
   polygonColor: Vec3 = [1, 1, 1],
-): ImageData[] {
+) {
   const gl = canvas.getContext("webgl");
   if (!gl) {
     console.error("WebGL not supported");
@@ -19,7 +23,6 @@ export function polygonsToGrayscale(
   const numLayers = layers.length;
   const framebuffers: WebGLFramebuffer[] = [];
   const textures: WebGLTexture[] = [];
-  const layerData: ImageData[] = [];
   const width = canvas.width;
   const height = canvas.height;
 
@@ -186,9 +189,8 @@ export function polygonsToGrayscale(
 
     const buffer = new Uint8ClampedArray(width * height * 4);
     gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, buffer);
-    layerData.push(new ImageData(buffer, width, height));
     gl.deleteBuffer(indexBuffer); // Clean up index buffer for this layer
-    progressCallback(i + 1, numLayers);
+    progressCallback(i, numLayers, buffer);
   }
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
@@ -200,8 +202,6 @@ export function polygonsToGrayscale(
   gl.deleteProgram(program);
   gl.deleteShader(vertexShader);
   gl.deleteShader(fragmentShader);
-
-  return layerData;
 }
 
 function createShader(
