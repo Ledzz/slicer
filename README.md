@@ -4,6 +4,7 @@ Web-based slicer for SLA printers
 ## TODO
 
 [ ] - Run slicing in worker
+[ ] - Support generation
 [ ] - Display slicing progress
 [ ] - Check that slicing works correctly on a real model
 [ ] - Add primitives
@@ -13,7 +14,6 @@ Web-based slicer for SLA printers
     [ ] - Union
     [ ] - Subtract
     [ ] - Intersect
-[ ] - Support generation
 [ ] - Hollow
 [ ] - Holes
 [ ] - Printer and resin settings

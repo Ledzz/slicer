@@ -2,10 +2,11 @@ import { SimplePolygon, Vec3 } from "manifold-3d";
 import earcut, { flatten } from "earcut";
 
 export function polygonsToGrayscale(
-  canvas: HTMLCanvasElement,
+  canvas: OffscreenCanvas,
   layers: SimplePolygon[][], // Array of layers
   originalWidth: number,
   originalHeight: number,
+  progressCallback: (current: number, total: number) => void,
   backgroundColor: Vec3 = [0, 0, 0], // Array of background colors for each layer
   polygonColor: Vec3 = [1, 1, 1],
 ): ImageData[] {
@@ -187,6 +188,7 @@ export function polygonsToGrayscale(
     gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, buffer);
     layerData.push(new ImageData(buffer, width, height));
     gl.deleteBuffer(indexBuffer); // Clean up index buffer for this layer
+    progressCallback(i + 1, numLayers);
   }
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 

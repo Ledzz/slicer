@@ -2,7 +2,9 @@
 // Browser-compatible version using ArrayBuffer and DataView instead of Node.js Buffer
 
 import { X_SIZE, Y_SIZE } from "./constants.ts";
-import { polygonsToGrayscale } from "./toGrayscale.ts";
+import { api } from "./workerApi.ts";
+import { proxy } from "comlink";
+import { reportProgress } from "./reportProgress.ts";
 
 class GooFileGenerator {
   // Use array of chunks for flexible size
@@ -685,17 +687,15 @@ export async function exportGoo(result) {
     transitionLayers: 8,
   });
 
-  const canvas = new OffscreenCanvas(width, height);
-
-  canvas.width = width;
-  canvas.height = height;
-
   console.time("render");
-  const imageData = polygonsToGrayscale(
-    canvas,
+
+  const imageData = await api.polygonsToGrayscaleWithCanvas(
+    width,
+    height,
     result.layers.map((l) => l.polygons),
     X_SIZE,
     Y_SIZE,
+    proxy(reportProgress),
   );
   console.timeEnd("render");
 

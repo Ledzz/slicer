@@ -1,7 +1,9 @@
 import { FC, useEffect, useState } from "react";
-import { polygonsToGrayscale } from "./export/toGrayscale.ts";
 import { X_SIZE, Y_SIZE } from "./export/constants.ts";
 import { usePreviewStore } from "./previewStore.ts";
+import { api } from "./export/workerApi.ts";
+import { reportProgress } from "./export/reportProgress.ts";
+import { proxy } from "comlink";
 
 export const ImagePreview: FC = ({ result }) => {
   const [c, setCanvas] = useState<HTMLCanvasElement | null>(null);
@@ -12,9 +14,18 @@ export const ImagePreview: FC = ({ result }) => {
   const [res, setRes] = useState<ImageData[]>([]);
 
   useEffect(() => {
-    const canvas = new OffscreenCanvas(width, height);
-    const allPolygons = result.layers.map((l) => l.polygons);
-    setRes(polygonsToGrayscale(canvas, allPolygons, X_SIZE, Y_SIZE));
+    (async function () {
+      const allPolygons = result.layers.map((l) => l.polygons);
+      const r = await api.polygonsToGrayscaleWithCanvas(
+        width,
+        height,
+        allPolygons,
+        X_SIZE,
+        Y_SIZE,
+        proxy(reportProgress),
+      );
+      setRes(r);
+    })();
   }, [c, height, result.layers, width]);
 
   useEffect(() => {
