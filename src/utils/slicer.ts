@@ -30,9 +30,7 @@ export const slice = async (file: string) => {
   const layerCount = Math.ceil(modelHeight / layerHeight);
 
   // TODO: We need to lay model flat on the bed
-
   for (let i = 0; i < layerCount; i++) {
-    // for (let i = 0; i < 1; i++) {
     const height = i * layerHeight;
 
     const layer = createLayer(height);

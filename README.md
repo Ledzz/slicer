@@ -7,6 +7,7 @@ Web-based slicer for SLA printers
 [ ] - Support generation
 [ ] - Display slicing progress
 [ ] - Check that slicing works correctly on a real model
+[ ] - Handles
 [ ] - Add primitives
     [ ] - Cube
     [ ] - Cylinder
