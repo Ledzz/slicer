@@ -4,6 +4,7 @@
 import { X_SIZE, Y_SIZE } from "./constants.ts";
 import { api } from "./workerApi.ts";
 import { proxy } from "comlink";
+import { SliceResult } from "../utils/types.ts";
 
 class GooFileGenerator {
   // Use array of chunks for flexible size
@@ -616,9 +617,9 @@ class GooFileGenerator {
     this.writeUint8Array(buffer);
   }
 }
-export async function exportGoo(result) {
-  const width = 15120;
-  const height = 6230;
+export async function exportGoo(result: SliceResult) {
+  const width = 1280;
+  const height = 800;
 
   const generator = new GooFileGenerator("output.goo");
 
@@ -688,7 +689,7 @@ export async function exportGoo(result) {
 
   console.time("render");
 
-  const imageData = await api.polygonsToGrayscaleWithCanvas(
+  await api.polygonsToGrayscaleWithCanvas(
     width,
     height,
     result.layers.map((l) => l.polygons),
@@ -725,8 +726,6 @@ export async function exportGoo(result) {
     }),
   );
   console.timeEnd("render");
-
-  result.layers.forEach((layer, layerIndex) => {});
 
   generator.writeEndingString();
   return generator.saveFile();

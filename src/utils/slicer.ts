@@ -11,12 +11,12 @@ import {
 } from "three";
 import { geometry2mesh, manifold } from "./manifold.ts";
 import { SimplePolygon } from "manifold-3d";
+import { SliceLayer, SliceResult } from "./types.ts";
 
 const loader = new STLLoader();
 
-export const slice = async (file: string) => {
+export const slice = async (file: string): Promise<SliceResult> => {
   const layerHeight = 0.05;
-  // const layerHeight = 20;
 
   const layers = [];
 
@@ -37,9 +37,9 @@ export const slice = async (file: string) => {
     layers.push(layer);
   }
 
-  return { layers, geometry, bounds };
+  return { manifold: m, layers, geometry, bounds };
 
-  function createLayer(height: number) {
+  function createLayer(height: number): SliceLayer {
     const crossection = m.slice(height);
     const polygons = crossection.toPolygons();
     const line = contourToLines(polygons, height, 0xff0000, 1);
