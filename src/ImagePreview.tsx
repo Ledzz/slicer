@@ -3,8 +3,9 @@ import { X_SIZE, Y_SIZE } from "./export/constants.ts";
 import { usePreviewStore } from "./previewStore.ts";
 import { api } from "./export/workerApi.ts";
 import { proxy } from "comlink";
+import { SliceResult } from "./utils/types.ts";
 
-export const ImagePreview: FC = ({ result }) => {
+export const ImagePreview: FC<{ result: SliceResult }> = ({ result }) => {
   const [c, setCanvas] = useState<HTMLCanvasElement | null>(null);
   const width = Math.floor(15120 / 50);
   const height = Math.floor(6230 / 50);
@@ -23,7 +24,7 @@ export const ImagePreview: FC = ({ result }) => {
         X_SIZE,
         Y_SIZE,
         proxy((layerIndex: number, total: number, data: Uint8ClampedArray) => {
-          console.log(`Progress: ${((layerIndex / total) * 100).toFixed(2)}%`);
+          // console.log(`Progress: ${((layerIndex / total) * 100).toFixed(2)}%`);
           const imageData = new ImageData(data, width, height);
           r.push(imageData);
         }),

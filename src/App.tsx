@@ -1,22 +1,25 @@
 import "./App.css";
-import { Button, Layout, theme } from "antd";
+import {Button, Layout, theme} from "antd";
 import Sider from "antd/es/layout/Sider";
-import { Content } from "antd/es/layout/layout";
-import { Canvas } from "@react-three/fiber";
-import { noEvents, PointerEvents } from "./utils/pointer-events";
-import { OrbitHandles } from "@react-three/handle";
-import { Stl } from "./Stl";
-import { Environment } from "@react-three/drei";
-import { Suspense } from "react";
-import { DownloadOutlined } from "@ant-design/icons";
-import { slice } from "./utils/slicer";
-import { helperGroup } from "./utils/helper";
-import { setPreviewLayerIndex, usePreviewStore } from "./previewStore.ts";
-import { ImagePreview } from "./ImagePreview.tsx";
-import { exportGoo } from "./export/goo.ts";
-import { X_SIZE, Y_SIZE } from "./export/constants.ts";
+import {Content} from "antd/es/layout/layout";
+import {Canvas, RootState} from "@react-three/fiber";
+import {noEvents, PointerEvents} from "./utils/pointer-events";
+import {OrbitHandles} from "@react-three/handle";
+import {Stl} from "./Stl";
+import {Environment} from "@react-three/drei";
+import {Suspense, useCallback, useMemo, useState} from "react";
+import {DownloadOutlined} from "@ant-design/icons";
+import {slice} from "./utils/slicer";
+import {helperGroup} from "./utils/helper";
+import {setPreviewLayerIndex, usePreviewStore} from "./previewStore.ts";
+import {ImagePreview} from "./ImagePreview.tsx";
+import {exportGoo} from "./export/goo.ts";
+import {X_SIZE, Y_SIZE} from "./export/constants.ts";
+import {generateSupports} from "./utils/supports.ts";
+import {Scene} from "three";
 
-const file = "/baseplate-1x1.stl";
+// const file = "/baseplate-1x1.stl";
+const file = "/Support_test.stl";
 // const file = "/cube.stl";
 
 const result = await slice(file);
@@ -27,6 +30,15 @@ function App() {
   } = theme.useToken();
 
   const previewLayerIndex = usePreviewStore((s) => s.previewLayerIndex);
+const [scene, setScene] = useState<Scene>();
+
+  const supports = useMemo(() => {
+    return generateSupports(result, scene);
+  }, [scene]);
+
+  const handleCreated = useCallback((state: RootState) => {
+      setScene(state.scene);
+  }, [])
 
   return (
     <>
@@ -100,12 +112,14 @@ function App() {
 
             <OrbitHandles />
 
-            <group rotation-x={-Math.PI / 2}>
+            <group rotation-x={-Math.PI / 2} ref={setScene}>
               <primitive object={helperGroup} />
               <mesh>
                 <planeGeometry args={[X_SIZE, Y_SIZE]} />
                 <meshBasicMaterial wireframe color={0x999999} />
               </mesh>
+
+              <primitive object={supports} />
 
               <axesHelper scale={60} />
 

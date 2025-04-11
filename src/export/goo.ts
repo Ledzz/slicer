@@ -646,7 +646,7 @@ export async function exportGoo(result: SliceResult) {
     xSizePlatform: X_SIZE,
     ySizePlatform: Y_SIZE,
     zSizePlatform: 220,
-    layerThickness: 0.05,
+    layerThickness: result.layerHeight,
     exposureTime,
     exposureDelayMode: true,
     turnOffTime: 0,

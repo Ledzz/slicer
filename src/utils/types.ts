@@ -13,4 +13,7 @@ export type SliceResult = {
   layers: SliceLayer[];
   geometry: BufferGeometry;
   bounds: Box3;
+  layerHeight: number;
 };
+
+export type Support = {};

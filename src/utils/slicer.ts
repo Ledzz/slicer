@@ -37,7 +37,7 @@ export const slice = async (file: string): Promise<SliceResult> => {
     layers.push(layer);
   }
 
-  return { manifold: m, layers, geometry, bounds };
+  return { manifold: m, layers, geometry, bounds, layerHeight };
 
   function createLayer(height: number): SliceLayer {
     const crossection = m.slice(height);
