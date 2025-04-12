@@ -47,9 +47,9 @@ export const generateSupports = (sliceResult: SliceResult, scene: Scene) => {
       positions[c + 1],
       positions[c + 2],
     );
-    if (vertexA.z === 0 || vertexB.z === 0 || vertexC.z === 0) {
-      continue;
-    }
+    // if (vertexA.z === 0 || vertexB.z === 0 || vertexC.z === 0) {
+    //   continue;
+    // }
 
     const ab = new Vector3().subVectors(vertexB, vertexA);
     const ac = new Vector3().subVectors(vertexC, vertexA);
