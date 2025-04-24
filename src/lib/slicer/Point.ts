@@ -23,19 +23,10 @@ function unscale(val: number): number {
 }
 
 export class Point {
-  x: number;
-  y: number;
-
-  constructor(x: number = 0, y: number = 0) {
-    if (typeof x === "number" && typeof y === "number") {
-      // Handle double coordinates coming in
-      this.x = Math.round(x);
-      this.y = Math.round(y);
-    } else {
-      this.x = x;
-      this.y = y;
-    }
-  }
+  constructor(
+    public x: number = 0,
+    public y: number = 0,
+  ) {}
 
   static new_scale(x: number, y: number): Point {
     return new Point(scale_(x), scale_(y));
@@ -85,15 +76,15 @@ export class Point {
       const c = Math.cos(angle);
       const dx = curX - center.x;
       const dy = curY - center.y;
-      this.x = Math.round(center.x + c * dx - s * dy);
-      this.y = Math.round(center.y + c * dy + s * dx);
+      this.x = center.x + c * dx - s * dy;
+      this.y = center.y + c * dy + s * dx;
     } else {
       const curX = this.x;
       const curY = this.y;
       const s = Math.sin(angle);
       const c = Math.cos(angle);
-      this.x = Math.round(c * curX - s * curY);
-      this.y = Math.round(c * curY + s * curX);
+      this.x = c * curX - s * curY;
+      this.y = c * curY + s * curX;
     }
   }
 
@@ -118,7 +109,7 @@ export class Point {
     );
   }
 
-  nearest_point_index(points: Point[] | Point[] | Point[]): number {
+  nearest_point_index(points: Point[]): number {
     let idx = -1;
     let distance = -1; // We use squared distance to avoid sqrt operations
 
@@ -320,7 +311,7 @@ export class Point {
 }
 
 // Alias for Vector (same as in C++ code)
-export type Vector = Point;
+export class Vector extends Point {}
 
 // Helper assertion function
 function assert(condition: boolean, message?: string): asserts condition {
@@ -352,118 +343,6 @@ export class Point3 extends Point {
 
   coincides_with(point: Point3): boolean {
     return this.x === point.x && this.y === point.y && this.z === point.z;
-  }
-}
-
-// Alias for Vector3 (same as in C++ code)
-export type Vector3 = Point3;
-
-export class Pointf {
-  x: number;
-  y: number;
-
-  constructor(x: number = 0, y: number = 0) {
-    this.x = x;
-    this.y = y;
-  }
-
-  static new_unscale(x: number, y: number): Pointf {
-    return new Pointf(unscale(x), unscale(y));
-  }
-
-  static new_unscale_from_point(p: Point): Pointf {
-    return new Pointf(unscale(p.x), unscale(p.y));
-  }
-
-  toString(): string {
-    return `${this.x},${this.y}`;
-  }
-
-  wkt(): string {
-    return `POINT(${this.x} ${this.y})`;
-  }
-
-  dump_perl(): string {
-    return `[${this.x},${this.y}]`;
-  }
-
-  equals(rhs: Pointf): boolean {
-    return this.coincides_with_epsilon(rhs);
-  }
-
-  coincides_with_epsilon(rhs: Pointf): boolean {
-    return (
-      Math.abs(this.x - rhs.x) < EPSILON && Math.abs(this.y - rhs.y) < EPSILON
-    );
-  }
-
-  divideEquals(scalar: number): Pointf {
-    this.x /= scalar;
-    this.y /= scalar;
-    return this;
-  }
-
-  scale(factor: number): void {
-    this.x *= factor;
-    this.y *= factor;
-  }
-
-  translate(x: number, y: number): void;
-  translate(vector: Vectorf): void;
-  translate(xOrVector: number | Vectorf, y?: number): void {
-    if (typeof xOrVector === "number" && typeof y === "number") {
-      this.x += xOrVector;
-      this.y += y;
-    } else if (typeof xOrVector === "object") {
-      this.translate(xOrVector.x, xOrVector.y);
-    }
-  }
-
-  rotate(angle: number, center?: Pointf): void {
-    if (center) {
-      const curX = this.x;
-      const curY = this.y;
-      const s = Math.sin(angle);
-      const c = Math.cos(angle);
-      this.x = center.x + c * (curX - center.x) - s * (curY - center.y);
-      this.y = center.y + c * (curY - center.y) + s * (curX - center.x);
-    } else {
-      const curX = this.x;
-      const curY = this.y;
-      const s = Math.sin(angle);
-      const c = Math.cos(angle);
-      this.x = c * curX - s * curY;
-      this.y = c * curY + s * curX;
-    }
-  }
-
-  negative(): Pointf {
-    return new Pointf(-this.x, -this.y);
-  }
-
-  vector_to(point: Pointf): Vectorf {
-    return new Vectorf(point.x - this.x, point.y - this.y);
-  }
-}
-
-// Alias for Vectorf (same as in C++ code)
-export type Vectorf = Pointf;
-
-// Pointf operators
-export function pointfAdd(point1: Pointf, point2: Pointf): Pointf {
-  return new Pointf(point1.x + point2.x, point1.y + point2.y);
-}
-
-export function pointfDivide(point: Pointf, scalar: number): Pointf {
-  return new Pointf(point.x / scalar, point.y / scalar);
-}
-
-export class Pointf3 extends Pointf {
-  z: number;
-
-  constructor(x: number = 0, y: number = 0, z: number = 0) {
-    super(x, y);
-    this.z = z;
   }
 
   static new_unscale(x: number, y: number, z: number): Pointf3 {
@@ -509,6 +388,19 @@ export class Pointf3 extends Pointf {
     return new Vectorf3(point.x - this.x, point.y - this.y, point.z - this.z);
   }
 }
+
+export class Pointf extends Point {}
+
+// Pointf operators
+export function pointfAdd(point1: Pointf, point2: Pointf): Pointf {
+  return new Pointf(point1.x + point2.x, point1.y + point2.y);
+}
+
+export function pointfDivide(point: Pointf, scalar: number): Pointf {
+  return new Pointf(point.x / scalar, point.y / scalar);
+}
+
+export class Pointf3 extends Point3 {}
 
 // Alias for Vectorf3 (same as in C++ code)
 export type Vectorf3 = Pointf3;

@@ -1,4 +1,4 @@
-import { Point, Point3 } from "./Point";
+import { Point, Point3, Pointf3 } from "./Point";
 import { Line } from "three";
 
 export class BoundingBoxBase<T extends Point> {
@@ -376,8 +376,12 @@ export class BoundingBoxf extends BoundingBoxBase<Point> {
 export class BoundingBoxf3 extends BoundingBox3Base<Point3> {
   constructor();
   constructor(min: Point3, max: Point3);
-  constructor(points: Point3[]);
-  constructor(arg1?: Point3[] | Point3, arg2?: Point3) {
+  constructor(min: Pointf3, max: Pointf3);
+  constructor(points: (Point3 | Pointf3)[]);
+  constructor(
+    arg1?: (Point3 | Pointf3)[] | Point3 | Pointf3,
+    arg2?: Point3 | Pointf3,
+  ) {
     if (arg1 === undefined) {
       super();
       return;

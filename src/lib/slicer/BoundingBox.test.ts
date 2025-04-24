@@ -140,7 +140,7 @@ describe("BoundingBox", () => {
     expect(center.z).toBe(0.5);
   });
 
-  it("should return if point containss in BoundingBox", () => {
+  it("should return if point contained in BoundingBox", () => {
     const bbox = new BoundingBoxf3(
       new Pointf3(-1, -2, -3),
       new Pointf3(1, 2, 3),
