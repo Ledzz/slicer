@@ -131,7 +131,7 @@ export class Point {
 
     return idx;
   }
-
+  /* This method finds the point that is closest to both this point and the supplied one */
   nearest_waypoint_index(points: Point[], dest: Point): number {
     let idx = -1;
     let distance = -1;

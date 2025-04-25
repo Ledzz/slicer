@@ -75,4 +75,56 @@ describe("Point", () => {
     expect(point1.coincides_with_epsilon(point2)).toBe(true);
     expect(point1.coincides_with_epsilon(point3)).toBe(false);
   });
+
+  it("should find index of nearest point", () => {
+    const point = new Point(1, 2);
+    const points = [new Point(3, 4), new Point(5, 6), new Point(1.5, 2.5)];
+    const index = point.nearest_point_index(points);
+    expect(index).toBe(2);
+  });
+
+  it("should find index of point nearest to this and to given", () => {
+    const point = new Point(2, 3);
+    const points = [
+      new Point(1, 1),
+      new Point(2, 2),
+      new Point(3, 3),
+      new Point(4, 4),
+    ];
+    const index = point.nearest_waypoint_index(points, new Point(3, 4));
+    expect(index).toBe(2);
+  });
+
+  it("should calculate distance to point", () => {
+    const point1 = new Point(1, 2);
+    const point2 = new Point(4, 6);
+    const distance = point1.distance_to(point2);
+    expect(distance).toBeCloseTo(5, 3);
+  });
+
+  it("should calculate distance to line", () => {
+    const point = new Point(1, 2);
+    const lineStart = new Point(0, 0);
+    const lineEnd = new Point(3, 3);
+    const distance = point.distance_to({ a: lineStart, b: lineEnd });
+    expect(distance).toBeCloseTo(0.707, 3);
+  });
+
+  it("should calculate ccw", () => {
+    const point = new Point(1, 2);
+    const angle = point.ccw(new Point(0, 0), new Point(3, 3));
+    expect(angle).toBeCloseTo(3, 3);
+  });
+  it("should calculate ccw angle", () => {
+    const point = new Point(1, 2);
+    const angle = point.ccw_angle(new Point(0, 0), new Point(3, 3));
+    expect(angle).toBeCloseTo(2.498, 3);
+  });
+  it.todo("projection_onto");
+  it.todo("negative");
+  it.todo("vector_to");
+  it.todo("align_to_grid");
+  it.todo("align_to_grid_coord");
 });
+
+describe.todo("Point3");
