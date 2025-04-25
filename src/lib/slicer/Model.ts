@@ -2,6 +2,7 @@
 import { BoundingBoxf3 } from "./BoundingBox.ts";
 import { LayerHeightSpline } from "./LayerHeightSpline.ts";
 import { Pointf } from "./Point.ts";
+import { DynamicPrintConfig } from "./PrintConfig.ts";
 import { TransformationMatrix } from "./TransformationMatrix.ts";
 import { TriangleMesh } from "./TriangleMesh.ts";
 import { readSTLToModel } from "./utils/read/stl.ts";
@@ -239,16 +240,29 @@ export class Model {
  */
 export class ModelMaterial {
   // Properties
-  attributes: t_model_material_attributes;
-  config: DynamicPrintConfig;
+  attributes: t_model_material_attributes = new Map();
+  config: DynamicPrintConfig = new DynamicPrintConfig();
 
   // Constructor
-  constructor(model: Model);
-  constructor(model: Model, other: ModelMaterial);
+  constructor(
+    public model: Model,
+    other?: ModelMaterial,
+  ) {
+    if (other) {
+      this.attributes = new Map(other.attributes);
+      this.config = new DynamicPrintConfig(other.config);
+    }
+  }
 
   // Methods
-  get_model(): Model;
-  apply(attributes: t_model_material_attributes): void;
+  get_model(): Model {
+    return this.model;
+  }
+  apply(attributes: t_model_material_attributes): void {
+    attributes.forEach((k, v) => {
+      this.attributes.set(k, v);
+    });
+  }
 }
 
 /**
