@@ -402,8 +402,7 @@ export function pointfDivide(point: Pointf, scalar: number): Pointf {
 
 export class Pointf3 extends Point3 {}
 
-// Alias for Vectorf3 (same as in C++ code)
-export type Vectorf3 = Pointf3;
+export class Vectorf3 extends Pointf3 {}
 
 // Utility function to convert to Points
 export function to_points<T extends { points: Point[] }>(items: T[]): Point[] {
