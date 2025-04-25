@@ -27,69 +27,210 @@ type ModelInstancePtrs = Array<ModelInstance>;
  */
 export class Model {
   // Properties
-  materials: ModelMaterialMap;
+  materials: ModelMaterialMap = new Map();
   objects: ModelObjectPtrs = [];
-  metadata: Map<string, string>;
+  metadata: Map<string, string> = new Map();
 
   // Constructor
-  constructor();
-  constructor(other: Model);
+  constructor(other?: Model) {
+    if (other) {
+      other.materials.forEach((material, material_id) => {
+        this.add_material(material_id, material);
+      });
 
-  // Methods
-  swap(other: Model): void;
-  static async read_from_file(file: File): Model {
+      other.objects.forEach((object) => {
+        this.add_object(object, true);
+      });
+
+      this.metadata = new Map(other.metadata);
+    }
+  }
+
+  swap(other: Model): void {
+    [this.materials, other.materials] = [other.materials, this.materials];
+    [this.objects, other.objects] = [other.objects, this.objects];
+    [this.metadata, other.metadata] = [other.metadata, this.metadata];
+  }
+  static async read_from_file(file: File): Promise<Model> {
     const model = new Model();
 
     if (file.name.endsWith(".stl")) {
       await readSTLToModel(file, model);
     }
 
+    // TODO: Add other file types
+
+    if (model.objects.length === 0) {
+      throw new Error("This file couldn't be read because it's empty.");
+    }
+
+    model.objects.forEach((object) => {
+      object.input_file = file;
+    });
+
     return model;
   }
-  merge(other: Model): void;
+  merge(other: Model): void {
+    other.objects.forEach((object) => {
+      this.add_object(object, true);
+    });
+  }
   add_object(other?: ModelObject, copy_volumes?: boolean): ModelObject {
     const object = new ModelObject(this, other, copy_volumes);
     this.objects.push(object);
     return object;
   }
-  delete_object(idx: number): void;
-  clear_objects(): void;
-  add_material(material_id: t_model_material_id): ModelMaterial;
+  delete_object(idx: number): void {
+    if (idx < 0 || idx >= this.objects.length) {
+      throw new Error("Invalid object index");
+    }
+    this.objects.splice(idx, 1);
+  }
+  clear_objects(): void {
+    this.objects = [];
+  }
   add_material(
     material_id: t_model_material_id,
-    other: ModelMaterial,
-  ): ModelMaterial;
-  get_material(material_id: t_model_material_id): ModelMaterial | null;
-  delete_material(material_id: t_model_material_id): void;
-  clear_materials(): void;
-  has_objects_with_no_instances(): boolean;
-  add_default_instances(): boolean;
-  bounding_box(): BoundingBoxf3;
-  repair(): void;
-  split(): void;
-  center_instances_around_point(point: Pointf): void;
-  align_instances_to_origin(): void;
-  align_to_ground(): void;
-  translate(x: number, y: number, z: number): void;
-  mesh(): TriangleMesh;
-  raw_mesh(): TriangleMesh;
+    other?: ModelMaterial,
+  ): ModelMaterial {
+    if (other) {
+      const material = new ModelMaterial(this, other);
+      this.materials.set(material_id, material);
+      return material;
+    } else {
+      let material = this.get_material(material_id);
+      if (!material) {
+        material = new ModelMaterial(this);
+        this.materials.set(material_id, material);
+      }
+      return material;
+    }
+  }
+  get_material(material_id: t_model_material_id): ModelMaterial | null {
+    return this.materials.get(material_id) || null;
+  }
+  delete_material(material_id: t_model_material_id): void {
+    this.materials.delete(material_id);
+  }
+  clear_materials(): void {
+    this.materials.clear();
+  }
+  has_objects_with_no_instances(): boolean {
+    return this.objects.some((object) => object.instances.length === 0);
+  }
+  add_default_instances(): boolean {
+    let added = false;
+    this.objects.forEach((object) => {
+      if (object.instances.length === 0) {
+        object.add_instance();
+        added = true;
+      }
+    });
+    return added;
+  }
+  bounding_box(): BoundingBoxf3 {
+    const bbox = new BoundingBoxf3();
+    this.objects.forEach((object) => {
+      bbox.merge(object.bounding_box());
+    });
+    return bbox;
+  }
+  repair(): void {
+    this.objects.forEach((object) => {
+      object.repair();
+    });
+  }
+  split(): void {
+    const new_model = new Model();
+    this.objects.forEach((object) => {
+      object.split(new_model.objects);
+    });
+
+    this.clear_objects();
+    new_model.objects.forEach((object) => {
+      this.add_object(object);
+    });
+  }
+  center_instances_around_point(point: Pointf): void {
+    const bbox = this.bounding_box();
+    const size = bbox.size();
+    const shift_x = -bbox.min.x + point.x - size.x / 2;
+    const shift_y = -bbox.min.y + point.y - size.y / 2;
+    this.objects.forEach((object) => {
+      object.instances.forEach((instance) => {
+        instance.offset.translate(shift_x, shift_y);
+      });
+      object.invalidate_bounding_box();
+    });
+  }
+  align_instances_to_origin(): void {
+    const bbox = this.bounding_box();
+    const new_center = bbox.size();
+    new_center.translate(-new_center.x / 2, -new_center.y / 2);
+    this.center_instances_around_point(new_center);
+  }
+  align_to_ground(): void {
+    const bbox = this.bounding_box();
+    this.objects.forEach((object) => {
+      object.translate(0, 0, -bbox.min.z);
+    });
+  }
+  translate(x: number, y: number, z: number): void {
+    this.objects.forEach((object) => {
+      object.translate(x, y, z);
+    });
+  }
+  mesh(): TriangleMesh {
+    const m = new TriangleMesh();
+
+    this.objects.forEach((object) => {
+      m.merge(object.mesh());
+    });
+
+    return m;
+  }
+  raw_mesh(): TriangleMesh {
+    const m = new TriangleMesh();
+
+    this.objects.forEach((object) => {
+      m.merge(object.raw_mesh());
+    });
+
+    return m;
+  }
   _arrange(
     sizes: Pointfs,
     dist: number,
     bb: BoundingBoxf | null,
     out: Pointfs,
-  ): boolean;
-  arrange_objects(dist: number, bb?: BoundingBoxf | null): boolean;
-  duplicate(copies_num: number, dist: number, bb?: BoundingBoxf | null): void;
+  ): boolean {
+    throw new Error("Method not implemented.");
+  }
+  arrange_objects(dist: number, bb?: BoundingBoxf | null): boolean {
+    throw new Error("Method not implemented.");
+  }
+  duplicate(copies_num: number, dist: number, bb?: BoundingBoxf | null): void {
+    throw new Error("Method not implemented.");
+  }
   duplicate_objects(
     copies_num: number,
     dist: number,
     bb?: BoundingBoxf | null,
-  ): void;
-  duplicate_objects_grid(x: number, y: number, dist: number): void;
-  print_info(): void;
-  looks_like_multipart_object(): boolean;
-  convert_multipart_object(): void;
+  ): void {
+    throw new Error("Method not implemented.");
+  }
+  duplicate_objects_grid(x: number, y: number, dist: number): void {
+    throw new Error("Method not implemented.");
+  }
+  print_info(): void {
+    throw new Error("Method not implemented.");
+  }
+  looks_like_multipart_object(): boolean {
+    throw new Error("Method not implemented.");
+  }
+  convert_multipart_object(): void {
+    throw new Error("Method not implemented.");
+  }
 }
 
 /**
@@ -120,7 +261,7 @@ export class ModelMaterial {
 export class ModelObject {
   // Properties
   name: string;
-  input_file: string;
+  input_file: File;
   instances: ModelInstancePtrs;
   volumes: ModelVolumePtrs = [];
   config: DynamicPrintConfig;
