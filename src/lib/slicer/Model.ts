@@ -1,191 +1,127 @@
+// Type definitions
 import { BoundingBoxf3 } from "./BoundingBox.ts";
-import { TriangleMesh } from "./TriangleMesh.ts";
+import { LayerHeightSpline } from "./LayerHeightSpline.ts";
+import { Pointf } from "./Point.ts";
 import { TransformationMatrix } from "./TransformationMatrix.ts";
+import { TriangleMesh } from "./TriangleMesh.ts";
+import { readSTLToModel } from "./utils/read/stl.ts";
 
-type ModelMaterialId = string;
-type ModelMaterialMap = Map<ModelMaterialId, ModelMaterial>;
-type ModelObjectPtrs = ModelObject[];
-type ModelVolumePtrs = ModelVolume[];
-type ModelInstancePtrs = ModelInstance[];
+type t_model_material_id = string;
+type t_model_material_attribute = string;
+type t_model_material_attributes = Map<t_model_material_attribute, string>;
 type t_layer_height_range = [number, number];
 type t_layer_height_ranges = Map<t_layer_height_range, number>;
 
-class Model {
-  materials: ModelMaterialMap = new Map();
+// Helper types for collections
+type ModelMaterialMap = Map<t_model_material_id, ModelMaterial>;
+type ModelObjectPtrs = Array<ModelObject>;
+type ModelVolumePtrs = Array<ModelVolume>;
+type ModelInstancePtrs = Array<ModelInstance>;
+
+/**
+ * Model Class representing the print bed content
+ * Description of a triangular model with multiple materials, multiple instances with various affine transformations
+ * and with multiple modifier meshes.
+ * A model groups multiple objects, each object having possibly multiple instances,
+ * all objects may share multiple materials.
+ */
+export class Model {
+  // Properties
+  materials: ModelMaterialMap;
   objects: ModelObjectPtrs = [];
-  metadata = new Map<string, string>();
+  metadata: Map<string, string>;
 
-  constructor(other?: Model) {
-    if (other) {
-      // TODO: Copy model
+  // Constructor
+  constructor();
+  constructor(other: Model);
+
+  // Methods
+  swap(other: Model): void;
+  static async read_from_file(file: File): Model {
+    const model = new Model();
+
+    if (file.name.endsWith(".stl")) {
+      await readSTLToModel(file, model);
     }
-  }
 
-  swap(other: Model) {
-    // TODO: Swap model
+    return model;
   }
-
-  read_from_file(filename: string) {
-    // TODO: Read model from file
-  }
-
-  merge(other: Model) {
-    other.objects.forEach((object) => {
-      this.add_object(object, true);
-    });
-  }
-
-  add_object(other?: ModelObject, copy_volumes = false) {
+  merge(other: Model): void;
+  add_object(other?: ModelObject, copy_volumes?: boolean): ModelObject {
     const object = new ModelObject(this, other, copy_volumes);
     this.objects.push(object);
     return object;
   }
-
-  delete_object(idx: number) {
-    if (idx < 0 || idx >= this.objects.length) {
-      throw new Error("Invalid object index");
-    }
-    this.objects.splice(idx, 1);
-  }
-
-  clear_objects() {
-    throw new Error("Not implemented");
-  }
-
-  delete_material(id: ModelMaterialId) {
-    throw new Error("Not implemented");
-  }
-
-  clear_materials() {
-    throw new Error("Not implemented");
-  }
-
-  add_material(material_id: ModelMaterialId, other?: ModelMaterial) {
-    if (other) {
-      const material = new ModelMaterial(this, other);
-      this.materials.set(material_id, material);
-      return material;
-    } else {
-      let material = this.materials.get(material_id);
-      if (!material) {
-        material = new ModelMaterial(this);
-        this.materials.set(material_id, material);
-      }
-    }
-  }
-
-  has_objects_with_no_instances(): boolean {
-    return this.objects.some((object) => object.instances.length === 0);
-  }
-
-  add_default_instances(): boolean {
-    let added = false;
-    this.objects.forEach((object) => {
-      if (object.instances.length === 0) {
-        object.add_instance();
-        added = true;
-      }
-    });
-    return added;
-  }
-
-  bounding_box(): BoundingBoxf3 {
-    const box = new BoundingBoxf3();
-    this.objects.forEach((object) => {
-      box.merge(object.bounding_box());
-    });
-    return box;
-  }
-
-  repair() {
-    this.objects.forEach((object) => {
-      object.repair();
-    });
-  }
-
-  split() {
-    const new_model = new Model();
-    this.objects.forEach((object) => {
-      object.split(new_model.objects);
-    });
-
-    this.clear_objects();
-
-    new_model.objects.forEach((object) => {
-      this.add_object(object);
-    });
-  }
-
-  center_instances_around_point(point: Pointf) {
-    const bb = this.bounding_box();
-    const size = bb.size();
-    const shift_x = -bb.min.x + point.x - size.x / 2;
-    const shift_y = -bb.min.y + point.y - size.y / 2;
-    this.objects.forEach((object) => {
-      object.instances.forEach((instance) => {
-        instance.offset.translate(shift_x, shift_y);
-      });
-      object.invalidate_bounding_box();
-    });
-  }
-
-  translate(x: number, y: number, z: number) {
-    this.objects.forEach((object) => {
-      object.translate(x, y, z);
-    });
-  }
-
-  mesh(): TriangleMesh {
-    const mesh = new TriangleMesh();
-    this.objects.forEach((object) => {
-      mesh.merge(object.mesh());
-    });
-    return mesh;
-  }
-
-  raw_mesh(): TriangleMesh {
-    const mesh = new TriangleMesh();
-    this.objects.forEach((object) => {
-      mesh.merge(object.raw_mesh());
-    });
-    return mesh;
-  }
-
-  _arrange() {
-    // TODO: Arrange model
-  }
-
-  arrange_objects() {
-    // TODO: Arrange objects
-  }
-
-  duplicate() {
-    // TODO: Duplicate model
-  }
-
-  duplicate_objects() {
-    // TODO: Duplicate objects
-  }
-
-  duplicate_objects_grid() {
-    // TODO: Duplicate objects in grid
-  }
-
-  looks_like_multipart_object(): boolean {
-    // TODO: Check if model looks like multipart object
-    return false;
-  }
-
-  convert_multipart_object() {
-    // TODO: Convert multipart object
-  }
+  delete_object(idx: number): void;
+  clear_objects(): void;
+  add_material(material_id: t_model_material_id): ModelMaterial;
+  add_material(
+    material_id: t_model_material_id,
+    other: ModelMaterial,
+  ): ModelMaterial;
+  get_material(material_id: t_model_material_id): ModelMaterial | null;
+  delete_material(material_id: t_model_material_id): void;
+  clear_materials(): void;
+  has_objects_with_no_instances(): boolean;
+  add_default_instances(): boolean;
+  bounding_box(): BoundingBoxf3;
+  repair(): void;
+  split(): void;
+  center_instances_around_point(point: Pointf): void;
+  align_instances_to_origin(): void;
+  align_to_ground(): void;
+  translate(x: number, y: number, z: number): void;
+  mesh(): TriangleMesh;
+  raw_mesh(): TriangleMesh;
+  _arrange(
+    sizes: Pointfs,
+    dist: number,
+    bb: BoundingBoxf | null,
+    out: Pointfs,
+  ): boolean;
+  arrange_objects(dist: number, bb?: BoundingBoxf | null): boolean;
+  duplicate(copies_num: number, dist: number, bb?: BoundingBoxf | null): void;
+  duplicate_objects(
+    copies_num: number,
+    dist: number,
+    bb?: BoundingBoxf | null,
+  ): void;
+  duplicate_objects_grid(x: number, y: number, dist: number): void;
+  print_info(): void;
+  looks_like_multipart_object(): boolean;
+  convert_multipart_object(): void;
 }
-class ModelInstance {}
-class ModelMaterial {}
-class ModelObject {
+
+/**
+ * Model Material class
+ * Material, which may be shared across multiple ModelObjects of a single Model.
+ */
+export class ModelMaterial {
+  // Properties
+  attributes: t_model_material_attributes;
+  config: DynamicPrintConfig;
+
+  // Constructor
+  constructor(model: Model);
+  constructor(model: Model, other: ModelMaterial);
+
+  // Methods
+  get_model(): Model;
+  apply(attributes: t_model_material_attributes): void;
+}
+
+/**
+ * Model Object class
+ * A printable object, possibly having multiple print volumes (each with its own set of parameters and materials),
+ * and possibly having multiple modifier volumes, each modifier volume with its set of parameters and materials.
+ * Each ModelObject may be instantiated multiple times, each instance having different placement on the print bed,
+ * different rotation and different uniform scaling.
+ */
+export class ModelObject {
+  // Properties
   name: string;
   input_file: string;
-  instances: ModelInstancePtrs = [];
+  instances: ModelInstancePtrs;
   volumes: ModelVolumePtrs = [];
   config: DynamicPrintConfig;
   layer_height_ranges: t_layer_height_ranges;
@@ -194,83 +130,72 @@ class ModelObject {
   _bounding_box: BoundingBoxf3;
   _bounding_box_valid: boolean;
 
-  constructor(
-    private model: Model,
-    other?: ModelObject,
-    copy_volumes = false,
-  ) {
-    if (copy_volumes) {
-      other?.volumes.forEach((volume) => {
-        this.add_volume(volume);
-      });
-    }
-    other?.instances.forEach((instance) => {
-      this.add_instance(instance);
-    });
-  }
+  // Constructor
+  constructor(model: Model);
+  constructor(model: Model, other: ModelObject, copy_volumes?: boolean);
 
-  get_model(): Model {
-    return this.model;
-  }
-
-  add_volume(volumeOrMesh: TriangleMesh | ModelVolume) {
-    const volume = new ModelVolume(this, volumeOrMesh);
+  // Methods
+  operator_assign(other: ModelObject): ModelObject;
+  swap(other: ModelObject): void;
+  get_model(): Model;
+  add_volume(mesh: TriangleMesh): ModelVolume;
+  add_volume(volume: ModelVolume): ModelVolume;
+  add_volume(meshOrVolume: TriangleMesh | ModelVolume): ModelVolume {
+    const volume = new ModelVolume(this, meshOrVolume);
     this.volumes.push(volume);
     return volume;
   }
-
-  delete_volume(idx: number) {
-    if (idx < 0 || idx >= this.volumes.length) {
-      throw new Error("Invalid volume index");
-    }
-    this.volumes.splice(idx, 1);
-    this.invalidate_bounding_box();
-  }
-  clear_volumes() {
-    this.volumes = [];
-    this.invalidate_bounding_box();
-  }
-  add_instance(other: ModelInstance): ModelInstance {
-    const instance = new ModelInstance(this, other);
-    this.instances.push(instance);
-    return instance;
-  }
-  delete_instance(idx: number) {
-    if (idx < 0 || idx >= this.instances.length) {
-      throw new Error("Invalid instance index");
-    }
-    this.instances.splice(idx, 1);
-  }
-  bounding_box(): BoundingBoxf3 {
-    if (!this._bounding_box_valid) {
-      this.update_bounding_box();
-    }
-    return this._bounding_box;
-  }
-  invalidate_bounding_box() {
-    this._bounding_box_valid = false;
-  }
-  update_bounding_box() {
-    const raw_bbox = new BoundingBoxf3();
-    this.volumes.forEach((volume) => {
-      if (volume.modifier) {
-        return;
-      }
-      raw_bbox.merge(volume.bounding_box());
-    });
-    const bb = new BoundingBoxf3();
-    this.instances.forEach((instance) => {
-      bb.merge(instance.transform_bounding_box(raw_bbox));
-    });
-    this._bounding_box = bb;
-    this._bounding_box_valid = true;
-  }
-
-  repair() {
-    // TODO: repair
-  }
+  delete_volume(idx: number): void;
+  clear_volumes(): void;
+  add_instance(): ModelInstance;
+  add_instance(instance: ModelInstance): ModelInstance;
+  delete_instance(idx: number): void;
+  delete_last_instance(): void;
+  clear_instances(): void;
+  bounding_box(): BoundingBoxf3;
+  invalidate_bounding_box(): void;
+  repair(): void;
+  origin_translation(): Pointf3;
+  get_trafo_obj(): TransformationMatrix;
+  set_trafo_obj(trafo: TransformationMatrix): void;
+  mesh(): TriangleMesh;
+  raw_mesh(): TriangleMesh;
+  raw_bounding_box(): BoundingBoxf3;
+  instance_bounding_box(instance_idx: number): BoundingBoxf3;
+  align_to_ground(): void;
+  center_around_origin(): void;
+  get_trafo_to_center(): TransformationMatrix;
+  translate(vector: Vectorf3): void;
+  translate(x: number, y: number, z: number): void;
+  scale(factor: number): void;
+  scale(versor: Pointf3): void;
+  scale_to_fit(size: Sizef3): void;
+  rotate(angle: number, axis: Axis): void;
+  rotate(angle: number, axis: Vectorf3): void;
+  rotate(origin: Vectorf3, target: Vectorf3): void;
+  mirror(axis: Axis): void;
+  reset_undo_trafo(): void;
+  get_undo_trafo(): TransformationMatrix;
+  apply_transformation(trafo: TransformationMatrix): void;
+  transform_by_instance(
+    instance: ModelInstance,
+    dont_translate?: boolean,
+  ): void;
+  materials_count(): number;
+  facets_count(): number;
+  needed_repair(): boolean;
+  cut(axis: Axis, z: number, model: Model): void;
+  split(new_objects: ModelObjectPtrs): void;
+  update_bounding_box(): void;
+  print_info(): void;
 }
+
+/**
+ * An object STL, or a modifier volume, over which a different set of parameters shall be applied.
+ * ModelVolume instances are owned by a ModelObject.
+ */
 class ModelVolume {
+  // Properties
   name: string;
   mesh: TriangleMesh;
   trafo: TransformationMatrix;
@@ -279,42 +204,61 @@ class ModelVolume {
   input_file_obj_idx: number;
   input_file_vol_idx: number;
   modifier: boolean;
-  constructor(
-    public object: ModelObject,
-    other?: ModelVolume | TriangleMesh,
-  ) {
-    if (other) {
-      this.name = other.name;
-      this.mesh = other.mesh;
-      this.trafo = other.trafo;
-      this.config = other.config;
-      this.input_file = other.input_file;
-      this.input_file_obj_idx = other.input_file_obj_idx;
-      this.input_file_vol_idx = other.input_file_vol_idx;
-      this.modifier = other.modifier;
-      this.material_id = other.material_id;
-    }
-  }
-  get_object(): ModelObject {
-    return this.object;
-  }
-  get_transformed_mesh(trafo: TransformationMatrix): TriangleMesh {
-    return this.mesh.get_transformed_mesh(trafo);
-  }
-  get_transformed_bounding_box(trafo: TransformationMatrix): TriangleMesh {
-    return this.mesh.get_transformed_bounding_box(trafo);
-  }
 
-  bounding_box(): BoundingBoxf3 {
-    return this.mesh.bounding_box();
-  }
+  // Constructor
+  constructor(object: ModelObject, mesh: TriangleMesh);
+  constructor(object: ModelObject, other: ModelVolume);
 
-  translate(x: number, y: number, z: number) {
-    // TransformationMatrix trafo = TransformationMatrix::mat_translation(x,y,z);
-    // this->apply_transformation(trafo);
-
-    const trafo = TransformationMatrix.mat_translation(x, y, z);
-    this.apply_transformation(trafo);
-  }
+  // Methods
+  operator_assign(other: ModelVolume): ModelVolume;
+  swap(other: ModelVolume): void;
+  get_object(): ModelObject;
+  get_transformed_mesh(trafo: TransformationMatrix): TriangleMesh;
+  get_transformed_bounding_box(trafo: TransformationMatrix): BoundingBoxf3;
+  bounding_box(): BoundingBoxf3;
+  translate(x: number, y: number, z: number): void;
+  translate(vector: Vectorf3): void;
+  translateXY(vector: Vectorf): void;
+  scale(factor: number): void;
+  scale(x: number, y: number, z: number): void;
+  scale(vector: Vectorf3): void;
+  mirror(axis: Axis): void;
+  mirror(normal: Vectorf3): void;
+  rotate(angle_rad: number, axis: Axis): void;
+  apply_transformation(trafo: TransformationMatrix): void;
+  material_id(): t_model_material_id;
+  material_id(material_id: t_model_material_id): void;
+  material(): ModelMaterial | null;
+  set_material(material_id: t_model_material_id, material: ModelMaterial): void;
+  assign_unique_material(): ModelMaterial;
 }
-class DynamicPrintConfig {}
+
+/**
+ * A single instance of a ModelObject.
+ * Knows the affine transformation of an object.
+ */
+export class ModelInstance {
+  // Properties
+  rotation: number;
+  scaling_factor: number;
+  offset: Pointf;
+  additional_trafo: TransformationMatrix;
+
+  // Constructor
+  constructor(object: ModelObject);
+  constructor(object: ModelObject, trafo: TransformationMatrix);
+  constructor(object: ModelObject, other: ModelInstance);
+
+  // Methods
+  operator_assign(other: ModelInstance): ModelInstance;
+  swap(other: ModelInstance): void;
+  get_object(): ModelObject;
+  set_complete_trafo(trafo: TransformationMatrix): void;
+  transform_mesh(mesh: TriangleMesh, dont_translate?: boolean): void;
+  get_trafo_matrix(dont_translate?: boolean): TransformationMatrix;
+  transform_bounding_box(
+    bbox: BoundingBoxf3,
+    dont_translate?: boolean,
+  ): BoundingBoxf3;
+  transform_polygon(polygon: Polygon): void;
+}
