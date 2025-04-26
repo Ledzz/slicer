@@ -401,6 +401,7 @@ export function pointfDivide(point: Pointf, scalar: number): Pointf {
 }
 
 export class Pointf3 extends Point3 {}
+export class Sizef3 extends Point3 {}
 
 export class Vectorf3 extends Pointf3 {}
 

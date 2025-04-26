@@ -1,7 +1,8 @@
 // Type definitions
+import { Axis } from "./axis.ts";
 import { BoundingBoxf3 } from "./BoundingBox.ts";
 import { LayerHeightSpline } from "./LayerHeightSpline.ts";
-import { Pointf } from "./Point.ts";
+import { Pointf, Pointf3, Sizef3, Vectorf3 } from "./Point.ts";
 import { DynamicPrintConfig } from "./PrintConfig.ts";
 import { TransformationMatrix } from "./TransformationMatrix.ts";
 import { TriangleMesh } from "./TriangleMesh.ts";
@@ -280,69 +281,376 @@ export class ModelObject {
   volumes: ModelVolumePtrs = [];
   config: DynamicPrintConfig;
   layer_height_ranges: t_layer_height_ranges;
-  part_number: number;
+  part_number: number = -1;
   layer_height_spline: LayerHeightSpline;
   _bounding_box: BoundingBoxf3;
-  _bounding_box_valid: boolean;
+  _bounding_box_valid: boolean = false;
+  trafo_obj: TransformationMatrix = new TransformationMatrix();
+  trafo_undo_stack: TransformationMatrix;
 
   // Constructor
-  constructor(model: Model);
-  constructor(model: Model, other: ModelObject, copy_volumes?: boolean);
+  constructor(
+    public model: Model,
+    other: ModelObject,
+    copy_volumes?: boolean,
+  ) {
+    if (other) {
+      this.name = other.name;
+      this.input_file = other.input_file;
+      this.config = new DynamicPrintConfig(other.config);
+      this.layer_height_ranges = new Map(other.layer_height_ranges);
+      this.part_number = other.part_number;
+      this.layer_height_spline = new LayerHeightSpline(
+        other.layer_height_spline,
+      );
+      this.trafo_obj = other.trafo_obj;
+      this._bounding_box = other._bounding_box;
+      this._bounding_box_valid = other._bounding_box_valid;
+      this.model = other.model;
 
-  // Methods
-  operator_assign(other: ModelObject): ModelObject;
-  swap(other: ModelObject): void;
-  get_model(): Model;
+      if (copy_volumes) {
+        other.volumes.forEach((volume) => {
+          this.add_volume(volume);
+        });
+      }
+
+      other.instances.forEach((instance) => {
+        this.add_instance(instance);
+      });
+    }
+  }
+
+  get_model(): Model {
+    return this.model;
+  }
   add_volume(mesh: TriangleMesh): ModelVolume;
   add_volume(volume: ModelVolume): ModelVolume;
   add_volume(meshOrVolume: TriangleMesh | ModelVolume): ModelVolume {
     const volume = new ModelVolume(this, meshOrVolume);
     this.volumes.push(volume);
+    this.invalidate_bounding_box();
     return volume;
   }
-  delete_volume(idx: number): void;
-  clear_volumes(): void;
-  add_instance(): ModelInstance;
-  add_instance(instance: ModelInstance): ModelInstance;
-  delete_instance(idx: number): void;
-  delete_last_instance(): void;
-  clear_instances(): void;
-  bounding_box(): BoundingBoxf3;
-  invalidate_bounding_box(): void;
-  repair(): void;
-  origin_translation(): Pointf3;
-  get_trafo_obj(): TransformationMatrix;
-  set_trafo_obj(trafo: TransformationMatrix): void;
-  mesh(): TriangleMesh;
-  raw_mesh(): TriangleMesh;
-  raw_bounding_box(): BoundingBoxf3;
-  instance_bounding_box(instance_idx: number): BoundingBoxf3;
-  align_to_ground(): void;
-  center_around_origin(): void;
-  get_trafo_to_center(): TransformationMatrix;
+  delete_volume(idx: number): void {
+    if (idx < 0 || idx >= this.volumes.length) {
+      throw new Error("Invalid volume index");
+    }
+    this.volumes.splice(idx, 1);
+    this.invalidate_bounding_box();
+  }
+  clear_volumes(): void {
+    this.volumes = [];
+    this.invalidate_bounding_box();
+  }
+  add_instance(instance?: ModelInstance): ModelInstance {
+    const new_instance = new ModelInstance(this, instance);
+    this.instances.push(new_instance);
+    return new_instance;
+  }
+  delete_instance(idx: number): void {
+    if (idx < 0 || idx >= this.instances.length) {
+      throw new Error("Invalid instance index");
+    }
+    this.instances.splice(idx, 1);
+  }
+  delete_last_instance(): void {
+    this.delete_instance(this.instances.length - 1);
+  }
+  clear_instances(): void {
+    this.instances = [];
+  }
+  bounding_box(): BoundingBoxf3 {
+    if (!this._bounding_box_valid) {
+      this.update_bounding_box();
+    }
+    return this._bounding_box;
+  }
+  invalidate_bounding_box(): void {
+    this._bounding_box_valid = false;
+  }
+  update_bounding_box(): void {
+    const raw_bbox = new BoundingBoxf3();
+    this.volumes.forEach((v) => {
+      if (v.modifier) {
+        return;
+      }
+      raw_bbox.merge(v.bounding_box());
+    });
+    const bb = new BoundingBoxf3();
+    this.instances.forEach((instance) => {
+      bb.merge(instance.transform_bounding_box(raw_bbox));
+    });
+    this._bounding_box = bb;
+    this._bounding_box_valid = true;
+  }
+  repair(): void {
+    this.volumes.forEach((v) => v.mesh.repair());
+  }
+  origin_translation(): Pointf3 {
+    return new Pointf3(
+      this.trafo_obj.m03,
+      this.trafo_obj.m13,
+      this.trafo_obj.m23,
+    );
+  }
+  get_trafo_obj(): TransformationMatrix {
+    return this.trafo_obj;
+  }
+  set_trafo_obj(trafo: TransformationMatrix): void {
+    this.trafo_obj = trafo;
+  }
+  mesh(): TriangleMesh {
+    const mesh = new TriangleMesh();
+    this.instances.forEach((instance) => {
+      const instance_trafo = instance.get_trafo_matrix();
+      this.volumes.forEach((volume) => {
+        mesh.merge(volume.get_transformed_mesh(instance_trafo));
+      });
+    });
+    return mesh;
+  }
+  raw_mesh(): TriangleMesh {
+    const mesh = new TriangleMesh();
+    this.volumes.forEach((volume) => {
+      if (volume.modifier) {
+        return;
+      }
+      mesh.merge(volume.mesh);
+    });
+    return mesh;
+  }
+  raw_bounding_box(): BoundingBoxf3 {
+    const bb = new BoundingBoxf3();
+    if (this.instances.length === 0) {
+      throw new Error("Can't call raw_bounding_box() with no instances");
+    }
+    const trafo = this.instances[0].get_trafo_matrix(true);
+    this.volumes.forEach((volume) => {
+      if (volume.modifier) {
+        return;
+      }
+      bb.merge(volume.get_transformed_bounding_box(trafo));
+    });
+    return bb;
+  }
+  // this returns the bounding box of the *transformed* given instance
+  instance_bounding_box(instance_idx: number): BoundingBoxf3 {
+    const bb = new BoundingBoxf3();
+    if (this.instances.length <= instance_idx) {
+      throw new Error(
+        "Can't call instance_bounding_box(index) with insufficient amount of instances",
+      );
+    }
+    const trafo = this.instances[instance_idx].get_trafo_matrix(true);
+    this.volumes.forEach((volume) => {
+      if (volume.modifier) {
+        return;
+      }
+      bb.merge(volume.get_transformed_bounding_box(trafo));
+    });
+    return bb;
+  }
+  align_to_ground(): void {
+    const bbox = new BoundingBoxf3();
+    this.volumes.forEach((volume) => {
+      if (volume.modifier) {
+        return;
+      }
+      bbox.merge(volume.bounding_box());
+    });
+    this.translate(0, 0, -bbox.min.z);
+  }
+  center_around_origin(): void {
+    // calculate the displacements needed to
+    // center this object around the origin
+    const bb = new BoundingBoxf3();
+    this.volumes.forEach((volume) => {
+      if (volume.modifier) {
+        return;
+      }
+      bb.merge(volume.bounding_box());
+    });
+
+    // first align to origin on XYZ
+    const vector = new Vectorf3(-bb.min.x, -bb.min.y, -bb.min.z);
+
+    // then center it on XY
+    const size = bb.size();
+    vector.x -= size.x / 2;
+    vector.y -= size.y / 2;
+    this.translate(vector);
+    if (this.instances.length === 0) {
+      return;
+    }
+    this.instances.forEach((instance) => {
+      // apply rotation and scaling to vector as well before translating instance,
+      // in order to leave final position unaltered
+      const v = vector.negative();
+      v.rotate(instance.rotation, instance.offset);
+      v.scale(instance.scaling_factor);
+      instance.offset.translate(v.x, v.y);
+    });
+    this.invalidate_bounding_box();
+  }
+  get_trafo_to_center(): TransformationMatrix {
+    const raw_bbox = this.raw_bounding_box();
+    return TransformationMatrix.mat_translation(raw_bbox.center().negative());
+  }
   translate(vector: Vectorf3): void;
   translate(x: number, y: number, z: number): void;
+  translate(xOrVector: number | Vectorf3, yy?: number, zz?: number): void {
+    const isNumber = typeof xOrVector === "number";
+    const { x, y, z } = isNumber ? { x: xOrVector, y: yy, z: zz } : xOrVector;
+    const trafo = TransformationMatrix.mat_translation(x, y, z);
+    this.apply_transformation(trafo);
+    if (this._bounding_box_valid) {
+      this._bounding_box.translate(x, y, z);
+    }
+  }
   scale(factor: number): void;
   scale(versor: Pointf3): void;
-  scale_to_fit(size: Sizef3): void;
+  scale(xOrVersor: number | Pointf3): void {
+    const { x, y, z } =
+      typeof xOrVersor === "number"
+        ? { x: xOrVersor, y: xOrVersor, z: xOrVersor }
+        : xOrVersor;
+    const center_trafo = this.get_trafo_to_center();
+    const trafo = TransformationMatrix.multiply(
+      TransformationMatrix.mat_scale(x, y, z),
+      center_trafo,
+    );
+    trafo.applyLeft(center_trafo.inverse());
+    this.apply_transformation(trafo);
+    this.invalidate_bounding_box();
+  }
+  scale_to_fit(size: Sizef3): void {
+    throw new Error("Method not implemented.");
+  }
   rotate(angle: number, axis: Axis): void;
   rotate(angle: number, axis: Vectorf3): void;
-  rotate(origin: Vectorf3, target: Vectorf3): void;
-  mirror(axis: Axis): void;
-  reset_undo_trafo(): void;
-  get_undo_trafo(): TransformationMatrix;
-  apply_transformation(trafo: TransformationMatrix): void;
+  rotate(origin: Vectorf3, target: Vectorf3): void {
+    throw new Error("Method not implemented.");
+  }
+  mirror(axis: Axis): void {
+    throw new Error("Method not implemented.");
+  }
+  reset_undo_trafo(): void {
+    this.trafo_undo_stack = TransformationMatrix.mat_eye();
+  }
+  get_undo_trafo(): TransformationMatrix {
+    return this.trafo_undo_stack;
+  }
+  apply_transformation(trafo: TransformationMatrix): void {
+    this.trafo_obj.applyLeft(trafo);
+    this.trafo_undo_stack.applyLeft(trafo);
+    this.volumes.forEach((v) => v.apply_transformation(trafo));
+  }
   transform_by_instance(
     instance: ModelInstance,
     dont_translate?: boolean,
-  ): void;
-  materials_count(): number;
-  facets_count(): number;
-  needed_repair(): boolean;
-  cut(axis: Axis, z: number, model: Model): void;
-  split(new_objects: ModelObjectPtrs): void;
-  update_bounding_box(): void;
-  print_info(): void;
+  ): void {
+    // We get instance by copy because we would alter it in the loop below,
+    // causing inconsistent values in subsequent instances.
+    let temp_trafo = instance.get_trafo_matrix(dont_translate);
+    this.apply_transformation(temp_trafo);
+    temp_trafo = temp_trafo.inverse();
+    /*
+     Let:
+       * I1 be the trafo of the given instance,
+       * V the original volume trafo and
+       * I2 the trafo of the instance to be updated
+
+     Then:
+       previous: T = I2 * V
+       I1 has been applied to V:
+           Vnew = I1 * V
+           I1^-1 * I1 = eye
+
+           T = I2 * I1^-1 * I1 * V
+               ----------   ------
+                  I2new      Vnew
+   */
+    this.instances.forEach((i) => {
+      i.set_complete_trafo(i.get_trafo_matrix().multiplyRight(temp_trafo));
+    });
+    this.invalidate_bounding_box();
+  }
+  materials_count(): number {
+    const material_ids = new Set<t_model_material_id>();
+    this.volumes.forEach((v) => material_ids.add(v.material_id()));
+    return material_ids.size;
+  }
+  facets_count(): number {
+    let count = 0;
+    this.volumes.forEach((v) => {
+      if (v.modifier) {
+        return;
+      }
+      count += v.mesh.faces.length;
+    });
+    return count;
+  }
+  needed_repair(): boolean {
+    return this.volumes.some((v) => !v.modifier && v.mesh.needed_repair());
+  }
+  cut(axis: Axis, z: number, model: Model): void {
+    // clone this one to duplicate instances, materials etc.
+    const upper = model.add_object(this);
+    const lower = model.add_object(this);
+    upper.clear_volumes();
+    lower.clear_volumes();
+    // remove extension from filename and add suffix
+    // TODO
+    console.warn("Fix file names");
+    // if (this->input_file.empty()) {
+    //   upper->input_file = "upper";
+    //   lower->input_file = "lower";
+    // } else {
+    //   const boost::filesystem::path p{this->input_file};
+    //   upper->input_file = (p.parent_path() / p.stem()).string() + "_upper";
+    //   lower->input_file = (p.parent_path() / p.stem()).string() + "_lower";
+    // }
+    this.volumes.forEach((v) => {
+      if (v.modifier) {
+        upper.add_volume(v);
+        lower.add_volume(v);
+      } else {
+        const upper_mesh = new TriangleMesh();
+        const lower_mesh = new TriangleMesh();
+
+        console.warn("Fix slicing");
+
+        // if (axis === 'x') {
+        //   TriangleMeshSlicer
+        // }
+
+        upper_mesh.repair();
+        lower_mesh.repair();
+        upper_mesh.reset_repair_stats();
+        lower_mesh.reset_repair_stats();
+
+        if (upper_mesh.faces.length > 0) {
+          const vol = upper.add_volume(upper_mesh);
+          vol.name = v.name;
+          vol.config = v.config;
+          vol.set_material(v.material_id(), v.material());
+        }
+
+        if (lower_mesh.faces.length > 0) {
+          const vol = lower.add_volume(lower_mesh);
+          vol.name = v.name;
+          vol.config = v.config;
+          vol.set_material(v.material_id(), v.material());
+        }
+      }
+    });
+  }
+  split(new_objects: ModelObjectPtrs): void {
+    throw new Error("Method not implemented.");
+  }
+  print_info(): void {
+    throw new Error("Method not implemented.");
+  }
 }
 
 /**

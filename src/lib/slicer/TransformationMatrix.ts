@@ -1,4 +1,4 @@
-import { Pointf3 } from "./Point.ts";
+import { Pointf3, Vectorf3 } from "./Point.ts";
 import { Axis } from "./axis.ts";
 
 export class TransformationMatrix {
@@ -127,24 +127,27 @@ export class TransformationMatrix {
     );
   }
 
+  static mat_translation(vector: Vectorf3): TransformationMatrix;
+  static mat_translation(x: number, y: number, z: number): TransformationMatrix;
   static mat_translation(
-    x: number,
-    y: number,
-    z: number,
+    xOrVector: number | Vectorf3,
+    y?: number,
+    z?: number,
   ): TransformationMatrix {
+    const isNumber = typeof xOrVector === "number";
     return new TransformationMatrix(
       1.0,
       0.0,
       0.0,
-      x,
+      isNumber ? xOrVector : xOrVector.x,
       0.0,
       1.0,
       0.0,
-      y,
+      isNumber ? y : xOrVector.y,
       0.0,
       0.0,
       1.0,
-      z,
+      isNumber ? z : xOrVector.z,
     );
   }
 
