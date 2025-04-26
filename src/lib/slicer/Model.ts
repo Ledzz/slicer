@@ -12,7 +12,7 @@ type t_model_material_id = string;
 type t_model_material_attribute = string;
 type t_model_material_attributes = Map<t_model_material_attribute, string>;
 type t_layer_height_range = [number, number];
-type t_layer_height_ranges = Map<t_layer_height_range, number>;
+export type t_layer_height_ranges = Map<t_layer_height_range, number>;
 
 // Helper types for collections
 type ModelMaterialMap = Map<t_model_material_id, ModelMaterial>;
