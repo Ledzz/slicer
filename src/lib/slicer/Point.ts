@@ -404,6 +404,7 @@ export class Pointf3 extends Point3 {}
 export class Sizef3 extends Point3 {}
 
 export class Vectorf3 extends Pointf3 {}
+export class Vectorf extends Pointf {}
 
 // Utility function to convert to Points
 export function to_points<T extends { points: Point[] }>(items: T[]): Point[] {

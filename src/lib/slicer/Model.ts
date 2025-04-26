@@ -2,7 +2,7 @@
 import { Axis } from "./axis.ts";
 import { BoundingBoxf3 } from "./BoundingBox.ts";
 import { LayerHeightSpline } from "./LayerHeightSpline.ts";
-import { Pointf, Pointf3, Sizef3, Vectorf3 } from "./Point.ts";
+import { Pointf, Pointf3, Sizef3, Vectorf, Vectorf3 } from "./Point.ts";
 import { DynamicPrintConfig } from "./PrintConfig.ts";
 import { TransformationMatrix } from "./TransformationMatrix.ts";
 import { TriangleMesh } from "./TriangleMesh.ts";
@@ -658,7 +658,6 @@ export class ModelObject {
  * ModelVolume instances are owned by a ModelObject.
  */
 class ModelVolume {
-  // Properties
   name: string;
   mesh: TriangleMesh;
   trafo: TransformationMatrix;
@@ -666,34 +665,102 @@ class ModelVolume {
   input_file: string;
   input_file_obj_idx: number;
   input_file_vol_idx: number;
-  modifier: boolean;
+  modifier: boolean = false;
+  private object: ModelObject;
+  private _material_id: t_model_material_id;
 
-  // Constructor
   constructor(object: ModelObject, mesh: TriangleMesh);
   constructor(object: ModelObject, other: ModelVolume);
+  constructor(object: ModelObject, volumeOrMesh: ModelVolume | TriangleMesh) {
+    this.object = object;
+    if (volumeOrMesh instanceof ModelVolume) {
+      this.name = volumeOrMesh.name;
+      this.mesh = volumeOrMesh.mesh;
+      this.trafo = volumeOrMesh.trafo;
+      this.config = new DynamicPrintConfig(volumeOrMesh.config);
+      this.input_file = volumeOrMesh.input_file;
+      this.input_file_obj_idx = volumeOrMesh.input_file_obj_idx;
+      this.input_file_vol_idx = volumeOrMesh.input_file_vol_idx;
+      this.modifier = volumeOrMesh.modifier;
+    } else {
+      this.mesh = volumeOrMesh;
+      this.trafo = new TransformationMatrix();
+      this.config = new DynamicPrintConfig();
+    }
+  }
 
-  // Methods
-  operator_assign(other: ModelVolume): ModelVolume;
-  swap(other: ModelVolume): void;
-  get_object(): ModelObject;
-  get_transformed_mesh(trafo: TransformationMatrix): TriangleMesh;
-  get_transformed_bounding_box(trafo: TransformationMatrix): BoundingBoxf3;
-  bounding_box(): BoundingBoxf3;
+  get_object(): ModelObject {
+    return this.object;
+  }
+  get_transformed_mesh(trafo: TransformationMatrix): TriangleMesh {
+    return this.mesh.getTransformedMesh(trafo);
+  }
+  get_transformed_bounding_box(trafo: TransformationMatrix): BoundingBoxf3 {
+    return this.mesh.get_transformed_bounding_box(trafo);
+  }
+  bounding_box(): BoundingBoxf3 {
+    return this.mesh.boundingBox();
+  }
   translate(x: number, y: number, z: number): void;
   translate(vector: Vectorf3): void;
-  translateXY(vector: Vectorf): void;
+  translate(xOrVector: number | Vectorf3, yy?: number, zz?: number): void {
+    const isNumber = typeof xOrVector === "number";
+    const { x, y, z } = isNumber ? { x: xOrVector, y: yy, z: zz } : xOrVector;
+    const trafo = TransformationMatrix.mat_translation(x, y, z);
+    this.apply_transformation(trafo);
+  }
+  translateXY(vector: Vectorf): void {
+    this.translate(vector.x, vector.y, 0);
+  }
   scale(factor: number): void;
   scale(x: number, y: number, z: number): void;
   scale(vector: Vectorf3): void;
+  scale(factorOrXOrVector: number | Vectorf3, yy?: number, zz?: number): void {
+    const isNumber = typeof factorOrXOrVector === "number";
+    const { x, y, z } = isNumber
+      ? { x: factorOrXOrVector, y: yy, z: zz }
+      : factorOrXOrVector;
+    const trafo = TransformationMatrix.mat_scale(x, y, z);
+    this.apply_transformation(trafo);
+  }
   mirror(axis: Axis): void;
-  mirror(normal: Vectorf3): void;
-  rotate(angle_rad: number, axis: Axis): void;
-  apply_transformation(trafo: TransformationMatrix): void;
+  mirror(normal: Vectorf3): void {
+    throw new Error("Not implemented");
+  }
+  rotate(angle_rad: number, axis: Axis): void {
+    throw new Error("Not implemented");
+  }
+  apply_transformation(trafo: TransformationMatrix): void {
+    this.mesh.transform(trafo);
+    this.trafo.applyLeft(trafo);
+  }
   material_id(): t_model_material_id;
   material_id(material_id: t_model_material_id): void;
-  material(): ModelMaterial | null;
-  set_material(material_id: t_model_material_id, material: ModelMaterial): void;
-  assign_unique_material(): ModelMaterial;
+  material_id(material_id?: t_model_material_id): t_model_material_id | void {
+    if (material_id) {
+      this._material_id = material_id;
+      // ensure this->_material_id references an existing material
+      this.object.get_model().add_material(material_id);
+    } else {
+      return this._material_id;
+    }
+  }
+  material(): ModelMaterial | null {
+    this.object.get_model().get_material(this._material_id);
+  }
+  set_material(
+    material_id: t_model_material_id,
+    material: ModelMaterial,
+  ): void {
+    this._material_id = material_id;
+    this.object.get_model().add_material(material_id, material);
+  }
+  assign_unique_material(): ModelMaterial {
+    const model = this.get_object().get_model();
+    // as material-id "0" is reserved by the AMF spec we start from 1
+    this._material_id = 1 + model.materials.size; // watchout for implicit cast
+    return model.add_material(this._material_id);
+  }
 }
 
 /**

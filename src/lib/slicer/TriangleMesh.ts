@@ -1,5 +1,8 @@
 import { Vector2Tuple, Vector3Tuple } from "three";
 import { Axis } from "./axis.ts";
+import { TransformationMatrix } from "./TransformationMatrix.ts";
+import { BoundingBoxf3 } from "./BoundingBox.ts";
+import { Pointf3 } from "./Point.ts";
 
 const EPSILON = 1e-10;
 
@@ -562,18 +565,29 @@ export class TriangleMesh {
     return mesh;
   }
 
-  /**
-   * Returns the transformed mesh using the provided transformation matrix
-   *
-   * Note: This is a simplified implementation. You'll need to implement
-   * or import a proper TransformationMatrix class for full functionality.
-   */
-  getTransformedMesh(transformationMatrix: any): TriangleMesh {
-    // TODO: Implement proper transformation matrix operations
-    console.warn(
-      "getTransformedMesh() requires a TransformationMatrix implementation",
-    );
-    return this.clone();
+  getTransformedMesh(transformationMatrix: TransformationMatrix): TriangleMesh {
+    const mesh = new TriangleMesh();
+    // TODO
+    // std::vector<double> trafo_arr = trafo.matrix3x4f();
+    // stl_get_transform(&(this->stl), &(mesh.stl), trafo_arr.data());
+    // stl_invalidate_shared_vertices(&(mesh.stl));
+    return mesh;
+  }
+
+  get_transformed_bounding_box(trafo: TransformationMatrix): BoundingBoxf3 {
+    const bbox = new BoundingBoxf3();
+    this.faces.forEach((face) => {
+      for (let i = 0; i < 3; i++) {
+        const [v_x, v_y, v_z] = this.vertices[face[i]];
+        const poi = new Pointf3(
+          trafo.m00 * v_x + trafo.m01 * v_y + trafo.m02 * v_z + trafo.m03,
+          trafo.m10 * v_x + trafo.m11 * v_y + trafo.m12 * v_z + trafo.m13,
+          trafo.m20 * v_x + trafo.m21 * v_y + trafo.m22 * v_z + trafo.m23,
+        );
+        bbox.merge(poi);
+      }
+    });
+    return bbox;
   }
 
   /**
