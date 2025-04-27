@@ -1,4 +1,14 @@
-class LayerRegion {
+import { ExPolygonCollection } from "./ExPolygonCollection.ts";
+import { PrintRegion } from "./PrintRegion.ts";
+import { FlowRole, LayerRegionPtrs } from "./types.ts";
+import { PrintObject } from "./Print.ts";
+import { SurfaceCollection } from "./SurfaceCollection.ts";
+import { ExtrusionEntityCollection } from "./ExtrusionEntityCollection.ts";
+import { Polygons } from "./Polygons.ts";
+import { PolylineCollection } from "./PolylineCollection.ts";
+import { Flow } from "./Flow.ts";
+
+export class LayerRegion {
   layer() {
     return this._layer;
   }
@@ -86,10 +96,6 @@ export class Layer {
   /// Returns the number of regions
   region_count(): number;
   /// Gets a region at a specific id
-  get_region(idx: number) {
-    return this.regions[idx];
-  }
-  /// Gets a region at a specific id as const
   get_region(idx: number) {
     return this.regions[idx];
   }

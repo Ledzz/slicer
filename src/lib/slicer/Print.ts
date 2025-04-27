@@ -1,8 +1,24 @@
-import { ModelObject, t_layer_height_ranges } from "./Model.ts";
+import { ModelObject } from "./Model.ts";
 import { BoundingBoxf3 } from "./BoundingBox.ts";
 import { LayerHeightSpline } from "./LayerHeightSpline.ts";
 import { Point, Point3 } from "./Point.ts";
 import { Points } from "three";
+import {
+  Float,
+  FloatOrPercent,
+  Floats,
+  GCodeFlavor,
+  InfillPattern,
+  Int,
+  LayerPtrs,
+  Percent,
+  PrintObjectStep,
+  SeamPosition,
+  Strings,
+  SupportLayerPtrs,
+  SupportMaterialPattern,
+  t_layer_height_ranges,
+} from "./types.ts";
 
 export class Print {
   objects: PrintObject[];
@@ -10,19 +26,6 @@ export class Print {
 
   add_model_object(modelObject: ModelObject) {}
 }
-
-enum PrintObjectStep {
-  posLayers,
-  posSlice,
-  posPerimeters,
-  posDetectSurfaces,
-  posPrepareInfill,
-  posInfill,
-  posSupportMaterial,
-}
-
-type LayerPtrs = Layer[];
-type SupportLayerPtrs = SupportLayer[];
 
 class PrintState<StepType> {
   started = new Set<StepType>();
@@ -118,52 +121,7 @@ export class PrintObject {
     }
   }
 }
-type Percent = number;
-type FloatOrPercent = number;
-type Float = number;
-type Int = number;
-type Floats = number[];
-type Strings = string[];
 
-enum SeamPosition {
-  spRandom,
-  spNearest,
-  spAligned,
-  spRear,
-}
-enum SupportMaterialPattern {
-  smpRectilinear,
-  smpRectilinearGrid,
-  smpHoneycomb,
-  smpPillars,
-}
-
-enum InfillPattern {
-  ipRectilinear,
-  ipGrid,
-  ipAlignedRectilinear,
-  ipTriangles,
-  ipStars,
-  ipCubic,
-  ipConcentric,
-  ipHoneycomb,
-  ip3DHoneycomb,
-  ipGyroid,
-  ipHilbertCurve,
-  ipArchimedeanChords,
-  ipOctagramSpiral,
-}
-enum GCodeFlavor {
-  gcfRepRap,
-  gcfTeacup,
-  gcfMakerWare,
-  gcfSailfish,
-  gcfMach3,
-  gcfMachinekit,
-  gcfNoExtrusion,
-  gcfSmoothie,
-  gcfRepetier,
-}
 export class PrintObjectConfig {
   adaptive_slicing: boolean;
   adaptive_slicing_quality: Percent;

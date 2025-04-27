@@ -7,18 +7,15 @@ import { DynamicPrintConfig } from "./PrintConfig.ts";
 import { TransformationMatrix } from "./TransformationMatrix.ts";
 import { TriangleMesh } from "./TriangleMesh.ts";
 import { readSTLToModel } from "./utils/read/stl.ts";
-
-type t_model_material_id = string;
-type t_model_material_attribute = string;
-type t_model_material_attributes = Map<t_model_material_attribute, string>;
-type t_layer_height_range = [number, number];
-export type t_layer_height_ranges = Map<t_layer_height_range, number>;
-
-// Helper types for collections
-type ModelMaterialMap = Map<t_model_material_id, ModelMaterial>;
-type ModelObjectPtrs = Array<ModelObject>;
-type ModelVolumePtrs = Array<ModelVolume>;
-type ModelInstancePtrs = Array<ModelInstance>;
+import {
+  ModelInstancePtrs,
+  ModelMaterialMap,
+  ModelObjectPtrs,
+  ModelVolumePtrs,
+  t_layer_height_ranges,
+  t_model_material_attributes,
+  t_model_material_id,
+} from "./types.ts";
 
 /**
  * Model Class representing the print bed content
@@ -657,7 +654,7 @@ export class ModelObject {
  * An object STL, or a modifier volume, over which a different set of parameters shall be applied.
  * ModelVolume instances are owned by a ModelObject.
  */
-class ModelVolume {
+export class ModelVolume {
   name: string;
   mesh: TriangleMesh;
   trafo: TransformationMatrix;
