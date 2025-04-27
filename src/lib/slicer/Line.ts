@@ -166,13 +166,24 @@ export class Linef {
   ) {}
 }
 
-class Linef3 {
+export class Linef3 {
   constructor(
     public a: Pointf3,
     public b: Pointf3,
   ) {}
 
-  intersect_plane(z: number): Pointf3 {}
+  intersect_plane(z: number): Pointf3 {
+    return new Pointf3(
+      this.a.x +
+        ((this.b.x - this.a.x) * (z - this.a.z)) / (this.b.z - this.a.z),
+      this.a.y +
+        ((this.b.y - this.a.y) * (z - this.a.z)) / (this.b.z - this.a.z),
+      z,
+    );
+  }
 
-  scale(factor: number) {}
+  scale(factor: number) {
+    this.a.scale(factor);
+    this.b.scale(factor);
+  }
 }
