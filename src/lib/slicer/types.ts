@@ -91,3 +91,7 @@ export enum FlowRole {
   frSupportMaterial = 0b100000,
   frSupportMaterialInterface = 0b1000000,
 }
+
+export type ExPolygonCollections = Array<ExPolygonCollection>;
+
+export const EPSILON = 1e-12;
